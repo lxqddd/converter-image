@@ -1,0 +1,63 @@
+name: 构建多平台 Electron 应用
+on:
+  push:
+    tags:
+      - 'v*' # 仅在推送标签（如 v1.0.0）时触发构建
+  workflow_dispatch: # 允许手动触发
+
+permissions:
+  contents: write # 发布 Release 需要写入仓库内容权限
+
+jobs:
+  build:
+    # 为三个系统分别创建构建任务
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x # 指定 Node 版本
+
+      - name: 安装依赖
+        run: npm install
+
+      - name: 构建应用
+        run: npm run build # 执行 package.json 中的 dist 命令
+        # 可选：如果需要代码签名，添加证书（如 Windows 签名证书）
+        # env:
+        #   CSC_LINK: ${{ secrets.CSC_LINK }}
+        #   CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-build
+          path: dist/ # 上传打包后的文件（对应 package.json 中的 output 目录）
+
+  # 发布到 GitHub Releases
+  release:
+    needs: build # 依赖 build 任务完成
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载所有平台的构建产物
+        uses: actions/download-artifact@v4
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            windows-latest-build/**/*.exe
+            windows-latest-build/**/*.zip
+            macos-latest-build/**/*.dmg
+            macos-latest-build/**/*.zip
+            ubuntu-latest-build/**/*.deb
+            ubuntu-latest-build/**/*.snap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自动生成的令牌，用于发布
