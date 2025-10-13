@@ -40,7 +40,8 @@ jobs:
       - name: 构建应用
         run: npm run build # 执行 package.json 中的 dist 命令
         # 可选：如果需要代码签名，添加证书（如 Windows 签名证书）
-        # env:
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN }}
         #   CSC_LINK: ${{ secrets.CSC_LINK }}
         #   CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
@@ -70,3 +71,5 @@ jobs:
             **/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自动生成的令牌，用于发布
+
+
