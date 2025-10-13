@@ -16,7 +16,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, macos-13, ubuntu-latest]
+        include:
+          - os: macos-13
+            target: dmg
+          - os: windows-latest
+            target: nsis
+          - os: ubuntu-latest
+            target: AppImage
 
     steps:
       - name: 拉取代码
@@ -41,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-build
-          path: dist/ # 上传打包后的文件（对应 package.json 中的 output 目录）
+          path: release/ # electron-builder 的输出目录
 
   # 发布到 GitHub Releases
   release:
@@ -55,11 +62,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            windows-latest-build/**/*.exe
-            windows-latest-build/**/*.zip
-            macos-latest-build/**/*.dmg
-            macos-latest-build/**/*.zip
-            ubuntu-latest-build/**/*.deb
-            ubuntu-latest-build/**/*.snap
+            **/*.exe
+            **/*.msi
+            **/*.zip
+            **/*.dmg
+            **/*.pkg
+            **/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自动生成的令牌，用于发布

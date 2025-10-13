@@ -3,12 +3,14 @@
   "type": "module",
   "version": "0.0.1",
   "private": true,
+  "description": "图像格式转换工具",
+  "author": "向阳",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build && electron-builder",
     "preview": "vite preview",
-    "postinstall": "npx electron-rebuild"
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "element-plus": "^2.11.4",
