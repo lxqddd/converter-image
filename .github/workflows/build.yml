@@ -1,10 +1,10 @@
 name: 构建多平台 Electron 应用
 on:
   push:
-    branches:
-      - master
-    # tags:
-    #   - 'v*' # 仅在推送标签（如 v1.0.0）时触发构建
+    # branches:
+    #   - master
+    tags:
+      - 'v*' # 仅在推送标签（如 v1.0.0）时触发构建
   workflow_dispatch: # 允许手动触发
 
 permissions:
