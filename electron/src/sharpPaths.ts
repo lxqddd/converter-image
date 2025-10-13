@@ -19,7 +19,7 @@ function createBinaryRoot() {
   if (isDevelopment) {
     return path.join(process.cwd(), 'node_modules/sharp/build/Release')
   }
-  return path.join(process.resourcesPath, 'sharp', 'build', 'Release')
+  return path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'sharp', 'build', 'Release')
 }
 
 export function registerSharpBinaries() {

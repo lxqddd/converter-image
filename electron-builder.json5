@@ -3,18 +3,34 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "YourAppID",
   "asar": true,
-  "productName": "YourAppName",
+  "asarUnpack": [
+    "node_modules/sharp/**",
+    "node_modules/@img/**"
+  ],
+  "productName": "converter image",
   "directories": {
     "output": "release/${version}"
   },
   "files": [
-    "dist",
-    "dist-electron"
+    "dist/**",
+    "dist-electron/**",
+    "node_modules/fs-extra/**",
+    "node_modules/sharp/**",
+    "node_modules/@img/sharp-libvips-darwin-arm64/**",
+    "node_modules/@img/sharp-libvips-darwin-x64/**",
+    "node_modules/@img/sharp-libvips-linux-x64/**",
+    "node_modules/@img/sharp-libvips-linux-arm64/**",
+    "node_modules/@img/sharp-libvips-win32-x64/**",
+    "package.json"
   ],
   "extraResources": [
     {
       "from": "node_modules/sharp",
       "to": "sharp"
+    },
+    {
+      "from": "node_modules/@img",
+      "to": "@img"
     }
   ],
   "mac": {

@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow } from 'electron'
+import { registerSharpBinaries } from './src/sharpPaths'
 import { handleOpenDialog } from './src/index'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -66,6 +67,7 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(() => {
+  registerSharpBinaries()
   createWindow()
   handleOpenDialog()
 })

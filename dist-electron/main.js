@@ -1,791 +1,539 @@
-import path$c from "node:path";
-import { fileURLToPath } from "node:url";
-import { ipcMain, dialog, app, BrowserWindow } from "electron";
-import require$$0$2 from "fs";
-import require$$0 from "constants";
-import require$$0$1 from "stream";
-import require$$4 from "util";
-import require$$5 from "assert";
-import require$$1 from "path";
-import sharp from "sharp";
-var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
-var fs$h = {};
-var universalify$1 = {};
-universalify$1.fromCallback = function(fn) {
-  return Object.defineProperty(function(...args) {
-    if (typeof args[args.length - 1] === "function") fn.apply(this, args);
-    else {
-      return new Promise((resolve, reject) => {
-        args.push((err, res) => err != null ? reject(err) : resolve(res));
-        fn.apply(this, args);
+import F from "node:path";
+import { fileURLToPath as Ut } from "node:url";
+import { ipcMain as Bt, dialog as Jt, app as de, BrowserWindow as Ze } from "electron";
+import et from "fs";
+import Vt from "constants";
+import qt from "stream";
+import Ht from "util";
+import Yt from "assert";
+import M from "path";
+import Gt from "sharp";
+const Kt = {
+  darwin: [
+    { envVar: "SHARP_DARWIN_X64_PATH", filename: "sharp-darwin-x64.node" },
+    { envVar: "SHARP_DARWIN_ARM64_PATH", filename: "sharp-darwin-arm64.node" }
+  ],
+  win32: [
+    { envVar: "SHARP_WIN32_X64_PATH", filename: "sharp-win32-x64.node" }
+  ],
+  linux: [
+    { envVar: "SHARP_LINUX_X64_PATH", filename: "sharp-linux-x64.node" },
+    { envVar: "SHARP_LINUX_ARM64_PATH", filename: "sharp-linux-arm64.node" }
+  ]
+};
+function zt() {
+  return process.env.NODE_ENV === "development" ? F.join(process.cwd(), "node_modules/sharp/build/Release") : F.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "sharp", "build", "Release");
+}
+function Xt() {
+  const e = Kt[process.platform];
+  if (!e)
+    return;
+  const t = zt();
+  for (const { envVar: n, filename: i } of e)
+    process.env[n] = F.join(t, i);
+}
+var ge = typeof globalThis < "u" ? globalThis : typeof window < "u" ? window : typeof global < "u" ? global : typeof self < "u" ? self : {}, A = {}, O = {};
+O.fromCallback = function(e) {
+  return Object.defineProperty(function(...t) {
+    if (typeof t[t.length - 1] == "function") e.apply(this, t);
+    else
+      return new Promise((n, i) => {
+        t.push((r, o) => r != null ? i(r) : n(o)), e.apply(this, t);
       });
-    }
-  }, "name", { value: fn.name });
+  }, "name", { value: e.name });
 };
-universalify$1.fromPromise = function(fn) {
-  return Object.defineProperty(function(...args) {
-    const cb = args[args.length - 1];
-    if (typeof cb !== "function") return fn.apply(this, args);
-    else {
-      args.pop();
-      fn.apply(this, args).then((r) => cb(null, r), cb);
-    }
-  }, "name", { value: fn.name });
+O.fromPromise = function(e) {
+  return Object.defineProperty(function(...t) {
+    const n = t[t.length - 1];
+    if (typeof n != "function") return e.apply(this, t);
+    t.pop(), e.apply(this, t).then((i) => n(null, i), n);
+  }, "name", { value: e.name });
 };
-var constants = require$$0;
-var origCwd = process.cwd;
-var cwd = null;
-var platform = process.env.GRACEFUL_FS_PLATFORM || process.platform;
+var q = Vt, Qt = process.cwd, me = null, Zt = process.env.GRACEFUL_FS_PLATFORM || process.platform;
 process.cwd = function() {
-  if (!cwd)
-    cwd = origCwd.call(process);
-  return cwd;
+  return me || (me = Qt.call(process)), me;
 };
 try {
   process.cwd();
-} catch (er) {
+} catch {
 }
-if (typeof process.chdir === "function") {
-  var chdir = process.chdir;
-  process.chdir = function(d) {
-    cwd = null;
-    chdir.call(process, d);
-  };
-  if (Object.setPrototypeOf) Object.setPrototypeOf(process.chdir, chdir);
+if (typeof process.chdir == "function") {
+  var Le = process.chdir;
+  process.chdir = function(e) {
+    me = null, Le.call(process, e);
+  }, Object.setPrototypeOf && Object.setPrototypeOf(process.chdir, Le);
 }
-var polyfills$1 = patch$1;
-function patch$1(fs2) {
-  if (constants.hasOwnProperty("O_SYMLINK") && process.version.match(/^v0\.6\.[0-2]|^v0\.5\./)) {
-    patchLchmod(fs2);
-  }
-  if (!fs2.lutimes) {
-    patchLutimes(fs2);
-  }
-  fs2.chown = chownFix(fs2.chown);
-  fs2.fchown = chownFix(fs2.fchown);
-  fs2.lchown = chownFix(fs2.lchown);
-  fs2.chmod = chmodFix(fs2.chmod);
-  fs2.fchmod = chmodFix(fs2.fchmod);
-  fs2.lchmod = chmodFix(fs2.lchmod);
-  fs2.chownSync = chownFixSync(fs2.chownSync);
-  fs2.fchownSync = chownFixSync(fs2.fchownSync);
-  fs2.lchownSync = chownFixSync(fs2.lchownSync);
-  fs2.chmodSync = chmodFixSync(fs2.chmodSync);
-  fs2.fchmodSync = chmodFixSync(fs2.fchmodSync);
-  fs2.lchmodSync = chmodFixSync(fs2.lchmodSync);
-  fs2.stat = statFix(fs2.stat);
-  fs2.fstat = statFix(fs2.fstat);
-  fs2.lstat = statFix(fs2.lstat);
-  fs2.statSync = statFixSync(fs2.statSync);
-  fs2.fstatSync = statFixSync(fs2.fstatSync);
-  fs2.lstatSync = statFixSync(fs2.lstatSync);
-  if (fs2.chmod && !fs2.lchmod) {
-    fs2.lchmod = function(path2, mode, cb) {
-      if (cb) process.nextTick(cb);
-    };
-    fs2.lchmodSync = function() {
-    };
-  }
-  if (fs2.chown && !fs2.lchown) {
-    fs2.lchown = function(path2, uid, gid, cb) {
-      if (cb) process.nextTick(cb);
-    };
-    fs2.lchownSync = function() {
-    };
-  }
-  if (platform === "win32") {
-    fs2.rename = typeof fs2.rename !== "function" ? fs2.rename : function(fs$rename) {
-      function rename2(from, to, cb) {
-        var start = Date.now();
-        var backoff = 0;
-        fs$rename(from, to, function CB(er) {
-          if (er && (er.code === "EACCES" || er.code === "EPERM" || er.code === "EBUSY") && Date.now() - start < 6e4) {
-            setTimeout(function() {
-              fs2.stat(to, function(stater, st) {
-                if (stater && stater.code === "ENOENT")
-                  fs$rename(from, to, CB);
-                else
-                  cb(er);
-              });
-            }, backoff);
-            if (backoff < 100)
-              backoff += 10;
-            return;
-          }
-          if (cb) cb(er);
-        });
-      }
-      if (Object.setPrototypeOf) Object.setPrototypeOf(rename2, fs$rename);
-      return rename2;
-    }(fs2.rename);
-  }
-  fs2.read = typeof fs2.read !== "function" ? fs2.read : function(fs$read) {
-    function read(fd, buffer, offset, length, position, callback_) {
-      var callback;
-      if (callback_ && typeof callback_ === "function") {
-        var eagCounter = 0;
-        callback = function(er, _, __) {
-          if (er && er.code === "EAGAIN" && eagCounter < 10) {
-            eagCounter++;
-            return fs$read.call(fs2, fd, buffer, offset, length, position, callback);
-          }
-          callback_.apply(this, arguments);
+var en = tn;
+function tn(e) {
+  q.hasOwnProperty("O_SYMLINK") && process.version.match(/^v0\.6\.[0-2]|^v0\.5\./) && t(e), e.lutimes || n(e), e.chown = o(e.chown), e.fchown = o(e.fchown), e.lchown = o(e.lchown), e.chmod = i(e.chmod), e.fchmod = i(e.fchmod), e.lchmod = i(e.lchmod), e.chownSync = c(e.chownSync), e.fchownSync = c(e.fchownSync), e.lchownSync = c(e.lchownSync), e.chmodSync = r(e.chmodSync), e.fchmodSync = r(e.fchmodSync), e.lchmodSync = r(e.lchmodSync), e.stat = l(e.stat), e.fstat = l(e.fstat), e.lstat = l(e.lstat), e.statSync = d(e.statSync), e.fstatSync = d(e.fstatSync), e.lstatSync = d(e.lstatSync), e.chmod && !e.lchmod && (e.lchmod = function(a, u, f) {
+    f && process.nextTick(f);
+  }, e.lchmodSync = function() {
+  }), e.chown && !e.lchown && (e.lchown = function(a, u, f, s) {
+    s && process.nextTick(s);
+  }, e.lchownSync = function() {
+  }), Zt === "win32" && (e.rename = typeof e.rename != "function" ? e.rename : function(a) {
+    function u(f, s, y) {
+      var v = Date.now(), w = 0;
+      a(f, s, function E(W) {
+        if (W && (W.code === "EACCES" || W.code === "EPERM" || W.code === "EBUSY") && Date.now() - v < 6e4) {
+          setTimeout(function() {
+            e.stat(s, function(I, re) {
+              I && I.code === "ENOENT" ? a(f, s, E) : y(W);
+            });
+          }, w), w < 100 && (w += 10);
+          return;
+        }
+        y && y(W);
+      });
+    }
+    return Object.setPrototypeOf && Object.setPrototypeOf(u, a), u;
+  }(e.rename)), e.read = typeof e.read != "function" ? e.read : function(a) {
+    function u(f, s, y, v, w, E) {
+      var W;
+      if (E && typeof E == "function") {
+        var I = 0;
+        W = function(re, Ie, Re) {
+          if (re && re.code === "EAGAIN" && I < 10)
+            return I++, a.call(e, f, s, y, v, w, W);
+          E.apply(this, arguments);
         };
       }
-      return fs$read.call(fs2, fd, buffer, offset, length, position, callback);
+      return a.call(e, f, s, y, v, w, W);
     }
-    if (Object.setPrototypeOf) Object.setPrototypeOf(read, fs$read);
-    return read;
-  }(fs2.read);
-  fs2.readSync = typeof fs2.readSync !== "function" ? fs2.readSync : /* @__PURE__ */ function(fs$readSync) {
-    return function(fd, buffer, offset, length, position) {
-      var eagCounter = 0;
-      while (true) {
+    return Object.setPrototypeOf && Object.setPrototypeOf(u, a), u;
+  }(e.read), e.readSync = typeof e.readSync != "function" ? e.readSync : /* @__PURE__ */ function(a) {
+    return function(u, f, s, y, v) {
+      for (var w = 0; ; )
         try {
-          return fs$readSync.call(fs2, fd, buffer, offset, length, position);
-        } catch (er) {
-          if (er.code === "EAGAIN" && eagCounter < 10) {
-            eagCounter++;
+          return a.call(e, u, f, s, y, v);
+        } catch (E) {
+          if (E.code === "EAGAIN" && w < 10) {
+            w++;
             continue;
           }
-          throw er;
+          throw E;
         }
-      }
     };
-  }(fs2.readSync);
-  function patchLchmod(fs22) {
-    fs22.lchmod = function(path2, mode, callback) {
-      fs22.open(
-        path2,
-        constants.O_WRONLY | constants.O_SYMLINK,
-        mode,
-        function(err, fd) {
-          if (err) {
-            if (callback) callback(err);
+  }(e.readSync);
+  function t(a) {
+    a.lchmod = function(u, f, s) {
+      a.open(
+        u,
+        q.O_WRONLY | q.O_SYMLINK,
+        f,
+        function(y, v) {
+          if (y) {
+            s && s(y);
             return;
           }
-          fs22.fchmod(fd, mode, function(err2) {
-            fs22.close(fd, function(err22) {
-              if (callback) callback(err2 || err22);
+          a.fchmod(v, f, function(w) {
+            a.close(v, function(E) {
+              s && s(w || E);
             });
           });
         }
       );
-    };
-    fs22.lchmodSync = function(path2, mode) {
-      var fd = fs22.openSync(path2, constants.O_WRONLY | constants.O_SYMLINK, mode);
-      var threw = true;
-      var ret;
+    }, a.lchmodSync = function(u, f) {
+      var s = a.openSync(u, q.O_WRONLY | q.O_SYMLINK, f), y = !0, v;
       try {
-        ret = fs22.fchmodSync(fd, mode);
-        threw = false;
+        v = a.fchmodSync(s, f), y = !1;
       } finally {
-        if (threw) {
+        if (y)
           try {
-            fs22.closeSync(fd);
-          } catch (er) {
+            a.closeSync(s);
+          } catch {
           }
-        } else {
-          fs22.closeSync(fd);
-        }
+        else
+          a.closeSync(s);
       }
-      return ret;
+      return v;
     };
   }
-  function patchLutimes(fs22) {
-    if (constants.hasOwnProperty("O_SYMLINK") && fs22.futimes) {
-      fs22.lutimes = function(path2, at, mt, cb) {
-        fs22.open(path2, constants.O_SYMLINK, function(er, fd) {
-          if (er) {
-            if (cb) cb(er);
-            return;
-          }
-          fs22.futimes(fd, at, mt, function(er2) {
-            fs22.close(fd, function(er22) {
-              if (cb) cb(er2 || er22);
-            });
+  function n(a) {
+    q.hasOwnProperty("O_SYMLINK") && a.futimes ? (a.lutimes = function(u, f, s, y) {
+      a.open(u, q.O_SYMLINK, function(v, w) {
+        if (v) {
+          y && y(v);
+          return;
+        }
+        a.futimes(w, f, s, function(E) {
+          a.close(w, function(W) {
+            y && y(E || W);
           });
         });
-      };
-      fs22.lutimesSync = function(path2, at, mt) {
-        var fd = fs22.openSync(path2, constants.O_SYMLINK);
-        var ret;
-        var threw = true;
-        try {
-          ret = fs22.futimesSync(fd, at, mt);
-          threw = false;
-        } finally {
-          if (threw) {
-            try {
-              fs22.closeSync(fd);
-            } catch (er) {
-            }
-          } else {
-            fs22.closeSync(fd);
+      });
+    }, a.lutimesSync = function(u, f, s) {
+      var y = a.openSync(u, q.O_SYMLINK), v, w = !0;
+      try {
+        v = a.futimesSync(y, f, s), w = !1;
+      } finally {
+        if (w)
+          try {
+            a.closeSync(y);
+          } catch {
           }
-        }
-        return ret;
-      };
-    } else if (fs22.futimes) {
-      fs22.lutimes = function(_a, _b, _c, cb) {
-        if (cb) process.nextTick(cb);
-      };
-      fs22.lutimesSync = function() {
-      };
-    }
+        else
+          a.closeSync(y);
+      }
+      return v;
+    }) : a.futimes && (a.lutimes = function(u, f, s, y) {
+      y && process.nextTick(y);
+    }, a.lutimesSync = function() {
+    });
   }
-  function chmodFix(orig) {
-    if (!orig) return orig;
-    return function(target, mode, cb) {
-      return orig.call(fs2, target, mode, function(er) {
-        if (chownErOk(er)) er = null;
-        if (cb) cb.apply(this, arguments);
+  function i(a) {
+    return a && function(u, f, s) {
+      return a.call(e, u, f, function(y) {
+        S(y) && (y = null), s && s.apply(this, arguments);
       });
     };
   }
-  function chmodFixSync(orig) {
-    if (!orig) return orig;
-    return function(target, mode) {
+  function r(a) {
+    return a && function(u, f) {
       try {
-        return orig.call(fs2, target, mode);
-      } catch (er) {
-        if (!chownErOk(er)) throw er;
+        return a.call(e, u, f);
+      } catch (s) {
+        if (!S(s)) throw s;
       }
     };
   }
-  function chownFix(orig) {
-    if (!orig) return orig;
-    return function(target, uid, gid, cb) {
-      return orig.call(fs2, target, uid, gid, function(er) {
-        if (chownErOk(er)) er = null;
-        if (cb) cb.apply(this, arguments);
+  function o(a) {
+    return a && function(u, f, s, y) {
+      return a.call(e, u, f, s, function(v) {
+        S(v) && (v = null), y && y.apply(this, arguments);
       });
     };
   }
-  function chownFixSync(orig) {
-    if (!orig) return orig;
-    return function(target, uid, gid) {
+  function c(a) {
+    return a && function(u, f, s) {
       try {
-        return orig.call(fs2, target, uid, gid);
-      } catch (er) {
-        if (!chownErOk(er)) throw er;
+        return a.call(e, u, f, s);
+      } catch (y) {
+        if (!S(y)) throw y;
       }
     };
   }
-  function statFix(orig) {
-    if (!orig) return orig;
-    return function(target, options, cb) {
-      if (typeof options === "function") {
-        cb = options;
-        options = null;
+  function l(a) {
+    return a && function(u, f, s) {
+      typeof f == "function" && (s = f, f = null);
+      function y(v, w) {
+        w && (w.uid < 0 && (w.uid += 4294967296), w.gid < 0 && (w.gid += 4294967296)), s && s.apply(this, arguments);
       }
-      function callback(er, stats) {
-        if (stats) {
-          if (stats.uid < 0) stats.uid += 4294967296;
-          if (stats.gid < 0) stats.gid += 4294967296;
-        }
-        if (cb) cb.apply(this, arguments);
-      }
-      return options ? orig.call(fs2, target, options, callback) : orig.call(fs2, target, callback);
+      return f ? a.call(e, u, f, y) : a.call(e, u, y);
     };
   }
-  function statFixSync(orig) {
-    if (!orig) return orig;
-    return function(target, options) {
-      var stats = options ? orig.call(fs2, target, options) : orig.call(fs2, target);
-      if (stats) {
-        if (stats.uid < 0) stats.uid += 4294967296;
-        if (stats.gid < 0) stats.gid += 4294967296;
-      }
-      return stats;
+  function d(a) {
+    return a && function(u, f) {
+      var s = f ? a.call(e, u, f) : a.call(e, u);
+      return s && (s.uid < 0 && (s.uid += 4294967296), s.gid < 0 && (s.gid += 4294967296)), s;
     };
   }
-  function chownErOk(er) {
-    if (!er)
-      return true;
-    if (er.code === "ENOSYS")
-      return true;
-    var nonroot = !process.getuid || process.getuid() !== 0;
-    if (nonroot) {
-      if (er.code === "EINVAL" || er.code === "EPERM")
-        return true;
-    }
-    return false;
+  function S(a) {
+    if (!a || a.code === "ENOSYS")
+      return !0;
+    var u = !process.getuid || process.getuid() !== 0;
+    return !!(u && (a.code === "EINVAL" || a.code === "EPERM"));
   }
 }
-var Stream = require$$0$1.Stream;
-var legacyStreams = legacy$1;
-function legacy$1(fs2) {
+var Ae = qt.Stream, nn = rn;
+function rn(e) {
   return {
-    ReadStream,
-    WriteStream
+    ReadStream: t,
+    WriteStream: n
   };
-  function ReadStream(path2, options) {
-    if (!(this instanceof ReadStream)) return new ReadStream(path2, options);
-    Stream.call(this);
-    var self2 = this;
-    this.path = path2;
-    this.fd = null;
-    this.readable = true;
-    this.paused = false;
-    this.flags = "r";
-    this.mode = 438;
-    this.bufferSize = 64 * 1024;
-    options = options || {};
-    var keys = Object.keys(options);
-    for (var index = 0, length = keys.length; index < length; index++) {
-      var key = keys[index];
-      this[key] = options[key];
+  function t(i, r) {
+    if (!(this instanceof t)) return new t(i, r);
+    Ae.call(this);
+    var o = this;
+    this.path = i, this.fd = null, this.readable = !0, this.paused = !1, this.flags = "r", this.mode = 438, this.bufferSize = 64 * 1024, r = r || {};
+    for (var c = Object.keys(r), l = 0, d = c.length; l < d; l++) {
+      var S = c[l];
+      this[S] = r[S];
     }
-    if (this.encoding) this.setEncoding(this.encoding);
-    if (this.start !== void 0) {
-      if ("number" !== typeof this.start) {
+    if (this.encoding && this.setEncoding(this.encoding), this.start !== void 0) {
+      if (typeof this.start != "number")
         throw TypeError("start must be a Number");
-      }
-      if (this.end === void 0) {
-        this.end = Infinity;
-      } else if ("number" !== typeof this.end) {
+      if (this.end === void 0)
+        this.end = 1 / 0;
+      else if (typeof this.end != "number")
         throw TypeError("end must be a Number");
-      }
-      if (this.start > this.end) {
+      if (this.start > this.end)
         throw new Error("start must be <= end");
-      }
       this.pos = this.start;
     }
     if (this.fd !== null) {
       process.nextTick(function() {
-        self2._read();
+        o._read();
       });
       return;
     }
-    fs2.open(this.path, this.flags, this.mode, function(err, fd) {
-      if (err) {
-        self2.emit("error", err);
-        self2.readable = false;
+    e.open(this.path, this.flags, this.mode, function(a, u) {
+      if (a) {
+        o.emit("error", a), o.readable = !1;
         return;
       }
-      self2.fd = fd;
-      self2.emit("open", fd);
-      self2._read();
+      o.fd = u, o.emit("open", u), o._read();
     });
   }
-  function WriteStream(path2, options) {
-    if (!(this instanceof WriteStream)) return new WriteStream(path2, options);
-    Stream.call(this);
-    this.path = path2;
-    this.fd = null;
-    this.writable = true;
-    this.flags = "w";
-    this.encoding = "binary";
-    this.mode = 438;
-    this.bytesWritten = 0;
-    options = options || {};
-    var keys = Object.keys(options);
-    for (var index = 0, length = keys.length; index < length; index++) {
-      var key = keys[index];
-      this[key] = options[key];
+  function n(i, r) {
+    if (!(this instanceof n)) return new n(i, r);
+    Ae.call(this), this.path = i, this.fd = null, this.writable = !0, this.flags = "w", this.encoding = "binary", this.mode = 438, this.bytesWritten = 0, r = r || {};
+    for (var o = Object.keys(r), c = 0, l = o.length; c < l; c++) {
+      var d = o[c];
+      this[d] = r[d];
     }
     if (this.start !== void 0) {
-      if ("number" !== typeof this.start) {
+      if (typeof this.start != "number")
         throw TypeError("start must be a Number");
-      }
-      if (this.start < 0) {
+      if (this.start < 0)
         throw new Error("start must be >= zero");
-      }
       this.pos = this.start;
     }
-    this.busy = false;
-    this._queue = [];
-    if (this.fd === null) {
-      this._open = fs2.open;
-      this._queue.push([this._open, this.path, this.flags, this.mode, void 0]);
-      this.flush();
-    }
+    this.busy = !1, this._queue = [], this.fd === null && (this._open = e.open, this._queue.push([this._open, this.path, this.flags, this.mode, void 0]), this.flush());
   }
 }
-var clone_1 = clone$1;
-var getPrototypeOf = Object.getPrototypeOf || function(obj) {
-  return obj.__proto__;
+var on = an, cn = Object.getPrototypeOf || function(e) {
+  return e.__proto__;
 };
-function clone$1(obj) {
-  if (obj === null || typeof obj !== "object")
-    return obj;
-  if (obj instanceof Object)
-    var copy2 = { __proto__: getPrototypeOf(obj) };
+function an(e) {
+  if (e === null || typeof e != "object")
+    return e;
+  if (e instanceof Object)
+    var t = { __proto__: cn(e) };
   else
-    var copy2 = /* @__PURE__ */ Object.create(null);
-  Object.getOwnPropertyNames(obj).forEach(function(key) {
-    Object.defineProperty(copy2, key, Object.getOwnPropertyDescriptor(obj, key));
-  });
-  return copy2;
+    var t = /* @__PURE__ */ Object.create(null);
+  return Object.getOwnPropertyNames(e).forEach(function(n) {
+    Object.defineProperty(t, n, Object.getOwnPropertyDescriptor(e, n));
+  }), t;
 }
-var fs$g = require$$0$2;
-var polyfills = polyfills$1;
-var legacy = legacyStreams;
-var clone = clone_1;
-var util = require$$4;
-var gracefulQueue;
-var previousSymbol;
-if (typeof Symbol === "function" && typeof Symbol.for === "function") {
-  gracefulQueue = Symbol.for("graceful-fs.queue");
-  previousSymbol = Symbol.for("graceful-fs.previous");
-} else {
-  gracefulQueue = "___graceful-fs.queue";
-  previousSymbol = "___graceful-fs.previous";
+var P = et, sn = en, un = nn, ln = on, le = Ht, C, he;
+typeof Symbol == "function" && typeof Symbol.for == "function" ? (C = Symbol.for("graceful-fs.queue"), he = Symbol.for("graceful-fs.previous")) : (C = "___graceful-fs.queue", he = "___graceful-fs.previous");
+function fn() {
 }
-function noop() {
-}
-function publishQueue(context, queue2) {
-  Object.defineProperty(context, gracefulQueue, {
+function tt(e, t) {
+  Object.defineProperty(e, C, {
     get: function() {
-      return queue2;
+      return t;
     }
   });
 }
-var debug = noop;
-if (util.debuglog)
-  debug = util.debuglog("gfs4");
-else if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || ""))
-  debug = function() {
-    var m = util.format.apply(util, arguments);
-    m = "GFS4: " + m.split(/\n/).join("\nGFS4: ");
-    console.error(m);
-  };
-if (!fs$g[gracefulQueue]) {
-  var queue = commonjsGlobal[gracefulQueue] || [];
-  publishQueue(fs$g, queue);
-  fs$g.close = function(fs$close) {
-    function close(fd, cb) {
-      return fs$close.call(fs$g, fd, function(err) {
-        if (!err) {
-          resetQueue();
-        }
-        if (typeof cb === "function")
-          cb.apply(this, arguments);
+var K = fn;
+le.debuglog ? K = le.debuglog("gfs4") : /\bgfs4\b/i.test(process.env.NODE_DEBUG || "") && (K = function() {
+  var e = le.format.apply(le, arguments);
+  e = "GFS4: " + e.split(/\n/).join(`
+GFS4: `), console.error(e);
+});
+if (!P[C]) {
+  var yn = ge[C] || [];
+  tt(P, yn), P.close = function(e) {
+    function t(n, i) {
+      return e.call(P, n, function(r) {
+        r || We(), typeof i == "function" && i.apply(this, arguments);
       });
     }
-    Object.defineProperty(close, previousSymbol, {
-      value: fs$close
-    });
-    return close;
-  }(fs$g.close);
-  fs$g.closeSync = function(fs$closeSync) {
-    function closeSync(fd) {
-      fs$closeSync.apply(fs$g, arguments);
-      resetQueue();
+    return Object.defineProperty(t, he, {
+      value: e
+    }), t;
+  }(P.close), P.closeSync = function(e) {
+    function t(n) {
+      e.apply(P, arguments), We();
     }
-    Object.defineProperty(closeSync, previousSymbol, {
-      value: fs$closeSync
-    });
-    return closeSync;
-  }(fs$g.closeSync);
-  if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || "")) {
-    process.on("exit", function() {
-      debug(fs$g[gracefulQueue]);
-      require$$5.equal(fs$g[gracefulQueue].length, 0);
-    });
-  }
+    return Object.defineProperty(t, he, {
+      value: e
+    }), t;
+  }(P.closeSync), /\bgfs4\b/i.test(process.env.NODE_DEBUG || "") && process.on("exit", function() {
+    K(P[C]), Yt.equal(P[C].length, 0);
+  });
 }
-if (!commonjsGlobal[gracefulQueue]) {
-  publishQueue(commonjsGlobal, fs$g[gracefulQueue]);
-}
-var gracefulFs = patch(clone(fs$g));
-if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs$g.__patched) {
-  gracefulFs = patch(fs$g);
-  fs$g.__patched = true;
-}
-function patch(fs2) {
-  polyfills(fs2);
-  fs2.gracefulify = patch;
-  fs2.createReadStream = createReadStream;
-  fs2.createWriteStream = createWriteStream;
-  var fs$readFile = fs2.readFile;
-  fs2.readFile = readFile2;
-  function readFile2(path2, options, cb) {
-    if (typeof options === "function")
-      cb = options, options = null;
-    return go$readFile(path2, options, cb);
-    function go$readFile(path22, options2, cb2, startTime) {
-      return fs$readFile(path22, options2, function(err) {
-        if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-          enqueue([go$readFile, [path22, options2, cb2], err, startTime || Date.now(), Date.now()]);
-        else {
-          if (typeof cb2 === "function")
-            cb2.apply(this, arguments);
-        }
+ge[C] || tt(ge, P[C]);
+var te = Oe(ln(P));
+process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !P.__patched && (te = Oe(P), P.__patched = !0);
+function Oe(e) {
+  sn(e), e.gracefulify = Oe, e.createReadStream = Ie, e.createWriteStream = Re;
+  var t = e.readFile;
+  e.readFile = n;
+  function n(m, p, h) {
+    return typeof p == "function" && (h = p, p = null), x(m, p, h);
+    function x(T, _, g, b) {
+      return t(T, _, function($) {
+        $ && ($.code === "EMFILE" || $.code === "ENFILE") ? X([x, [T, _, g], $, b || Date.now(), Date.now()]) : typeof g == "function" && g.apply(this, arguments);
       });
     }
   }
-  var fs$writeFile = fs2.writeFile;
-  fs2.writeFile = writeFile2;
-  function writeFile2(path2, data, options, cb) {
-    if (typeof options === "function")
-      cb = options, options = null;
-    return go$writeFile(path2, data, options, cb);
-    function go$writeFile(path22, data2, options2, cb2, startTime) {
-      return fs$writeFile(path22, data2, options2, function(err) {
-        if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-          enqueue([go$writeFile, [path22, data2, options2, cb2], err, startTime || Date.now(), Date.now()]);
-        else {
-          if (typeof cb2 === "function")
-            cb2.apply(this, arguments);
-        }
+  var i = e.writeFile;
+  e.writeFile = r;
+  function r(m, p, h, x) {
+    return typeof h == "function" && (x = h, h = null), T(m, p, h, x);
+    function T(_, g, b, $, N) {
+      return i(_, g, b, function(k) {
+        k && (k.code === "EMFILE" || k.code === "ENFILE") ? X([T, [_, g, b, $], k, N || Date.now(), Date.now()]) : typeof $ == "function" && $.apply(this, arguments);
       });
     }
   }
-  var fs$appendFile = fs2.appendFile;
-  if (fs$appendFile)
-    fs2.appendFile = appendFile;
-  function appendFile(path2, data, options, cb) {
-    if (typeof options === "function")
-      cb = options, options = null;
-    return go$appendFile(path2, data, options, cb);
-    function go$appendFile(path22, data2, options2, cb2, startTime) {
-      return fs$appendFile(path22, data2, options2, function(err) {
-        if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-          enqueue([go$appendFile, [path22, data2, options2, cb2], err, startTime || Date.now(), Date.now()]);
-        else {
-          if (typeof cb2 === "function")
-            cb2.apply(this, arguments);
-        }
+  var o = e.appendFile;
+  o && (e.appendFile = c);
+  function c(m, p, h, x) {
+    return typeof h == "function" && (x = h, h = null), T(m, p, h, x);
+    function T(_, g, b, $, N) {
+      return o(_, g, b, function(k) {
+        k && (k.code === "EMFILE" || k.code === "ENFILE") ? X([T, [_, g, b, $], k, N || Date.now(), Date.now()]) : typeof $ == "function" && $.apply(this, arguments);
       });
     }
   }
-  var fs$copyFile = fs2.copyFile;
-  if (fs$copyFile)
-    fs2.copyFile = copyFile2;
-  function copyFile2(src, dest, flags, cb) {
-    if (typeof flags === "function") {
-      cb = flags;
-      flags = 0;
-    }
-    return go$copyFile(src, dest, flags, cb);
-    function go$copyFile(src2, dest2, flags2, cb2, startTime) {
-      return fs$copyFile(src2, dest2, flags2, function(err) {
-        if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-          enqueue([go$copyFile, [src2, dest2, flags2, cb2], err, startTime || Date.now(), Date.now()]);
-        else {
-          if (typeof cb2 === "function")
-            cb2.apply(this, arguments);
-        }
+  var l = e.copyFile;
+  l && (e.copyFile = d);
+  function d(m, p, h, x) {
+    return typeof h == "function" && (x = h, h = 0), T(m, p, h, x);
+    function T(_, g, b, $, N) {
+      return l(_, g, b, function(k) {
+        k && (k.code === "EMFILE" || k.code === "ENFILE") ? X([T, [_, g, b, $], k, N || Date.now(), Date.now()]) : typeof $ == "function" && $.apply(this, arguments);
       });
     }
   }
-  var fs$readdir = fs2.readdir;
-  fs2.readdir = readdir;
-  var noReaddirOptionVersions = /^v[0-5]\./;
-  function readdir(path2, options, cb) {
-    if (typeof options === "function")
-      cb = options, options = null;
-    var go$readdir = noReaddirOptionVersions.test(process.version) ? function go$readdir2(path22, options2, cb2, startTime) {
-      return fs$readdir(path22, fs$readdirCallback(
-        path22,
-        options2,
-        cb2,
-        startTime
+  var S = e.readdir;
+  e.readdir = u;
+  var a = /^v[0-5]\./;
+  function u(m, p, h) {
+    typeof p == "function" && (h = p, p = null);
+    var x = a.test(process.version) ? function(g, b, $, N) {
+      return S(g, T(
+        g,
+        b,
+        $,
+        N
       ));
-    } : function go$readdir2(path22, options2, cb2, startTime) {
-      return fs$readdir(path22, options2, fs$readdirCallback(
-        path22,
-        options2,
-        cb2,
-        startTime
+    } : function(g, b, $, N) {
+      return S(g, b, T(
+        g,
+        b,
+        $,
+        N
       ));
     };
-    return go$readdir(path2, options, cb);
-    function fs$readdirCallback(path22, options2, cb2, startTime) {
-      return function(err, files) {
-        if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-          enqueue([
-            go$readdir,
-            [path22, options2, cb2],
-            err,
-            startTime || Date.now(),
-            Date.now()
-          ]);
-        else {
-          if (files && files.sort)
-            files.sort();
-          if (typeof cb2 === "function")
-            cb2.call(this, err, files);
-        }
+    return x(m, p, h);
+    function T(_, g, b, $) {
+      return function(N, k) {
+        N && (N.code === "EMFILE" || N.code === "ENFILE") ? X([
+          x,
+          [_, g, b],
+          N,
+          $ || Date.now(),
+          Date.now()
+        ]) : (k && k.sort && k.sort(), typeof b == "function" && b.call(this, N, k));
       };
     }
   }
   if (process.version.substr(0, 4) === "v0.8") {
-    var legStreams = legacy(fs2);
-    ReadStream = legStreams.ReadStream;
-    WriteStream = legStreams.WriteStream;
+    var f = un(e);
+    E = f.ReadStream, I = f.WriteStream;
   }
-  var fs$ReadStream = fs2.ReadStream;
-  if (fs$ReadStream) {
-    ReadStream.prototype = Object.create(fs$ReadStream.prototype);
-    ReadStream.prototype.open = ReadStream$open;
+  var s = e.ReadStream;
+  s && (E.prototype = Object.create(s.prototype), E.prototype.open = W);
+  var y = e.WriteStream;
+  y && (I.prototype = Object.create(y.prototype), I.prototype.open = re), Object.defineProperty(e, "ReadStream", {
+    get: function() {
+      return E;
+    },
+    set: function(m) {
+      E = m;
+    },
+    enumerable: !0,
+    configurable: !0
+  }), Object.defineProperty(e, "WriteStream", {
+    get: function() {
+      return I;
+    },
+    set: function(m) {
+      I = m;
+    },
+    enumerable: !0,
+    configurable: !0
+  });
+  var v = E;
+  Object.defineProperty(e, "FileReadStream", {
+    get: function() {
+      return v;
+    },
+    set: function(m) {
+      v = m;
+    },
+    enumerable: !0,
+    configurable: !0
+  });
+  var w = I;
+  Object.defineProperty(e, "FileWriteStream", {
+    get: function() {
+      return w;
+    },
+    set: function(m) {
+      w = m;
+    },
+    enumerable: !0,
+    configurable: !0
+  });
+  function E(m, p) {
+    return this instanceof E ? (s.apply(this, arguments), this) : E.apply(Object.create(E.prototype), arguments);
   }
-  var fs$WriteStream = fs2.WriteStream;
-  if (fs$WriteStream) {
-    WriteStream.prototype = Object.create(fs$WriteStream.prototype);
-    WriteStream.prototype.open = WriteStream$open;
-  }
-  Object.defineProperty(fs2, "ReadStream", {
-    get: function() {
-      return ReadStream;
-    },
-    set: function(val) {
-      ReadStream = val;
-    },
-    enumerable: true,
-    configurable: true
-  });
-  Object.defineProperty(fs2, "WriteStream", {
-    get: function() {
-      return WriteStream;
-    },
-    set: function(val) {
-      WriteStream = val;
-    },
-    enumerable: true,
-    configurable: true
-  });
-  var FileReadStream = ReadStream;
-  Object.defineProperty(fs2, "FileReadStream", {
-    get: function() {
-      return FileReadStream;
-    },
-    set: function(val) {
-      FileReadStream = val;
-    },
-    enumerable: true,
-    configurable: true
-  });
-  var FileWriteStream = WriteStream;
-  Object.defineProperty(fs2, "FileWriteStream", {
-    get: function() {
-      return FileWriteStream;
-    },
-    set: function(val) {
-      FileWriteStream = val;
-    },
-    enumerable: true,
-    configurable: true
-  });
-  function ReadStream(path2, options) {
-    if (this instanceof ReadStream)
-      return fs$ReadStream.apply(this, arguments), this;
-    else
-      return ReadStream.apply(Object.create(ReadStream.prototype), arguments);
-  }
-  function ReadStream$open() {
-    var that = this;
-    open(that.path, that.flags, that.mode, function(err, fd) {
-      if (err) {
-        if (that.autoClose)
-          that.destroy();
-        that.emit("error", err);
-      } else {
-        that.fd = fd;
-        that.emit("open", fd);
-        that.read();
-      }
+  function W() {
+    var m = this;
+    ve(m.path, m.flags, m.mode, function(p, h) {
+      p ? (m.autoClose && m.destroy(), m.emit("error", p)) : (m.fd = h, m.emit("open", h), m.read());
     });
   }
-  function WriteStream(path2, options) {
-    if (this instanceof WriteStream)
-      return fs$WriteStream.apply(this, arguments), this;
-    else
-      return WriteStream.apply(Object.create(WriteStream.prototype), arguments);
+  function I(m, p) {
+    return this instanceof I ? (y.apply(this, arguments), this) : I.apply(Object.create(I.prototype), arguments);
   }
-  function WriteStream$open() {
-    var that = this;
-    open(that.path, that.flags, that.mode, function(err, fd) {
-      if (err) {
-        that.destroy();
-        that.emit("error", err);
-      } else {
-        that.fd = fd;
-        that.emit("open", fd);
-      }
+  function re() {
+    var m = this;
+    ve(m.path, m.flags, m.mode, function(p, h) {
+      p ? (m.destroy(), m.emit("error", p)) : (m.fd = h, m.emit("open", h));
     });
   }
-  function createReadStream(path2, options) {
-    return new fs2.ReadStream(path2, options);
+  function Ie(m, p) {
+    return new e.ReadStream(m, p);
   }
-  function createWriteStream(path2, options) {
-    return new fs2.WriteStream(path2, options);
+  function Re(m, p) {
+    return new e.WriteStream(m, p);
   }
-  var fs$open = fs2.open;
-  fs2.open = open;
-  function open(path2, flags, mode, cb) {
-    if (typeof mode === "function")
-      cb = mode, mode = null;
-    return go$open(path2, flags, mode, cb);
-    function go$open(path22, flags2, mode2, cb2, startTime) {
-      return fs$open(path22, flags2, mode2, function(err, fd) {
-        if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-          enqueue([go$open, [path22, flags2, mode2, cb2], err, startTime || Date.now(), Date.now()]);
-        else {
-          if (typeof cb2 === "function")
-            cb2.apply(this, arguments);
-        }
+  var Mt = e.open;
+  e.open = ve;
+  function ve(m, p, h, x) {
+    return typeof h == "function" && (x = h, h = null), T(m, p, h, x);
+    function T(_, g, b, $, N) {
+      return Mt(_, g, b, function(k, Di) {
+        k && (k.code === "EMFILE" || k.code === "ENFILE") ? X([T, [_, g, b, $], k, N || Date.now(), Date.now()]) : typeof $ == "function" && $.apply(this, arguments);
       });
     }
   }
-  return fs2;
+  return e;
 }
-function enqueue(elem) {
-  debug("ENQUEUE", elem[0].name, elem[1]);
-  fs$g[gracefulQueue].push(elem);
-  retry();
+function X(e) {
+  K("ENQUEUE", e[0].name, e[1]), P[C].push(e), _e();
 }
-var retryTimer;
-function resetQueue() {
-  var now = Date.now();
-  for (var i = 0; i < fs$g[gracefulQueue].length; ++i) {
-    if (fs$g[gracefulQueue][i].length > 2) {
-      fs$g[gracefulQueue][i][3] = now;
-      fs$g[gracefulQueue][i][4] = now;
-    }
-  }
-  retry();
+var fe;
+function We() {
+  for (var e = Date.now(), t = 0; t < P[C].length; ++t)
+    P[C][t].length > 2 && (P[C][t][3] = e, P[C][t][4] = e);
+  _e();
 }
-function retry() {
-  clearTimeout(retryTimer);
-  retryTimer = void 0;
-  if (fs$g[gracefulQueue].length === 0)
-    return;
-  var elem = fs$g[gracefulQueue].shift();
-  var fn = elem[0];
-  var args = elem[1];
-  var err = elem[2];
-  var startTime = elem[3];
-  var lastTime = elem[4];
-  if (startTime === void 0) {
-    debug("RETRY", fn.name, args);
-    fn.apply(null, args);
-  } else if (Date.now() - startTime >= 6e4) {
-    debug("TIMEOUT", fn.name, args);
-    var cb = args.pop();
-    if (typeof cb === "function")
-      cb.call(null, err);
-  } else {
-    var sinceAttempt = Date.now() - lastTime;
-    var sinceStart = Math.max(lastTime - startTime, 1);
-    var desiredDelay = Math.min(sinceStart * 1.2, 100);
-    if (sinceAttempt >= desiredDelay) {
-      debug("RETRY", fn.name, args);
-      fn.apply(null, args.concat([startTime]));
+function _e() {
+  if (clearTimeout(fe), fe = void 0, P[C].length !== 0) {
+    var e = P[C].shift(), t = e[0], n = e[1], i = e[2], r = e[3], o = e[4];
+    if (r === void 0)
+      K("RETRY", t.name, n), t.apply(null, n);
+    else if (Date.now() - r >= 6e4) {
+      K("TIMEOUT", t.name, n);
+      var c = n.pop();
+      typeof c == "function" && c.call(null, i);
     } else {
-      fs$g[gracefulQueue].push(elem);
+      var l = Date.now() - o, d = Math.max(o - r, 1), S = Math.min(d * 1.2, 100);
+      l >= S ? (K("RETRY", t.name, n), t.apply(null, n.concat([r]))) : P[C].push(e);
     }
-  }
-  if (retryTimer === void 0) {
-    retryTimer = setTimeout(retry, 0);
+    fe === void 0 && (fe = setTimeout(_e, 0));
   }
 }
-(function(exports) {
-  const u2 = universalify$1.fromCallback;
-  const fs2 = gracefulFs;
-  const api = [
+(function(e) {
+  const t = O.fromCallback, n = te, i = [
     "access",
     "appendFile",
     "chmod",
@@ -824,1265 +572,945 @@ function retry() {
     "unlink",
     "utimes",
     "writeFile"
-  ].filter((key) => {
-    return typeof fs2[key] === "function";
-  });
-  Object.assign(exports, fs2);
-  api.forEach((method) => {
-    exports[method] = u2(fs2[method]);
-  });
-  exports.exists = function(filename, callback) {
-    if (typeof callback === "function") {
-      return fs2.exists(filename, callback);
-    }
-    return new Promise((resolve) => {
-      return fs2.exists(filename, resolve);
-    });
-  };
-  exports.read = function(fd, buffer, offset, length, position, callback) {
-    if (typeof callback === "function") {
-      return fs2.read(fd, buffer, offset, length, position, callback);
-    }
-    return new Promise((resolve, reject) => {
-      fs2.read(fd, buffer, offset, length, position, (err, bytesRead, buffer2) => {
-        if (err) return reject(err);
-        resolve({ bytesRead, buffer: buffer2 });
+  ].filter((r) => typeof n[r] == "function");
+  Object.assign(e, n), i.forEach((r) => {
+    e[r] = t(n[r]);
+  }), e.exists = function(r, o) {
+    return typeof o == "function" ? n.exists(r, o) : new Promise((c) => n.exists(r, c));
+  }, e.read = function(r, o, c, l, d, S) {
+    return typeof S == "function" ? n.read(r, o, c, l, d, S) : new Promise((a, u) => {
+      n.read(r, o, c, l, d, (f, s, y) => {
+        if (f) return u(f);
+        a({ bytesRead: s, buffer: y });
       });
     });
-  };
-  exports.write = function(fd, buffer, ...args) {
-    if (typeof args[args.length - 1] === "function") {
-      return fs2.write(fd, buffer, ...args);
-    }
-    return new Promise((resolve, reject) => {
-      fs2.write(fd, buffer, ...args, (err, bytesWritten, buffer2) => {
-        if (err) return reject(err);
-        resolve({ bytesWritten, buffer: buffer2 });
+  }, e.write = function(r, o, ...c) {
+    return typeof c[c.length - 1] == "function" ? n.write(r, o, ...c) : new Promise((l, d) => {
+      n.write(r, o, ...c, (S, a, u) => {
+        if (S) return d(S);
+        l({ bytesWritten: a, buffer: u });
       });
     });
-  };
-  exports.readv = function(fd, buffers, ...args) {
-    if (typeof args[args.length - 1] === "function") {
-      return fs2.readv(fd, buffers, ...args);
-    }
-    return new Promise((resolve, reject) => {
-      fs2.readv(fd, buffers, ...args, (err, bytesRead, buffers2) => {
-        if (err) return reject(err);
-        resolve({ bytesRead, buffers: buffers2 });
+  }, e.readv = function(r, o, ...c) {
+    return typeof c[c.length - 1] == "function" ? n.readv(r, o, ...c) : new Promise((l, d) => {
+      n.readv(r, o, ...c, (S, a, u) => {
+        if (S) return d(S);
+        l({ bytesRead: a, buffers: u });
       });
     });
-  };
-  exports.writev = function(fd, buffers, ...args) {
-    if (typeof args[args.length - 1] === "function") {
-      return fs2.writev(fd, buffers, ...args);
-    }
-    return new Promise((resolve, reject) => {
-      fs2.writev(fd, buffers, ...args, (err, bytesWritten, buffers2) => {
-        if (err) return reject(err);
-        resolve({ bytesWritten, buffers: buffers2 });
+  }, e.writev = function(r, o, ...c) {
+    return typeof c[c.length - 1] == "function" ? n.writev(r, o, ...c) : new Promise((l, d) => {
+      n.writev(r, o, ...c, (S, a, u) => {
+        if (S) return d(S);
+        l({ bytesWritten: a, buffers: u });
       });
     });
-  };
-  if (typeof fs2.realpath.native === "function") {
-    exports.realpath.native = u2(fs2.realpath.native);
-  } else {
-    process.emitWarning(
-      "fs.realpath.native is not a function. Is fs being monkey-patched?",
-      "Warning",
-      "fs-extra-WARN0003"
-    );
-  }
-})(fs$h);
-var makeDir$1 = {};
-var utils$1 = {};
-const path$b = require$$1;
-utils$1.checkPath = function checkPath(pth) {
-  if (process.platform === "win32") {
-    const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(path$b.parse(pth).root, ""));
-    if (pathHasInvalidWinCharacters) {
-      const error = new Error(`Path contains invalid characters: ${pth}`);
-      error.code = "EINVAL";
-      throw error;
-    }
+  }, typeof n.realpath.native == "function" ? e.realpath.native = t(n.realpath.native) : process.emitWarning(
+    "fs.realpath.native is not a function. Is fs being monkey-patched?",
+    "Warning",
+    "fs-extra-WARN0003"
+  );
+})(A);
+var De = {}, nt = {};
+const mn = M;
+nt.checkPath = function(t) {
+  if (process.platform === "win32" && /[<>:"|?*]/.test(t.replace(mn.parse(t).root, ""))) {
+    const i = new Error(`Path contains invalid characters: ${t}`);
+    throw i.code = "EINVAL", i;
   }
 };
-const fs$f = fs$h;
-const { checkPath: checkPath2 } = utils$1;
-const getMode = (options) => {
-  const defaults = { mode: 511 };
-  if (typeof options === "number") return options;
-  return { ...defaults, ...options }.mode;
+const rt = A, { checkPath: it } = nt, ot = (e) => {
+  const t = { mode: 511 };
+  return typeof e == "number" ? e : { ...t, ...e }.mode;
 };
-makeDir$1.makeDir = async (dir, options) => {
-  checkPath2(dir);
-  return fs$f.mkdir(dir, {
-    mode: getMode(options),
-    recursive: true
-  });
-};
-makeDir$1.makeDirSync = (dir, options) => {
-  checkPath2(dir);
-  return fs$f.mkdirSync(dir, {
-    mode: getMode(options),
-    recursive: true
-  });
-};
-const u$e = universalify$1.fromPromise;
-const { makeDir: _makeDir, makeDirSync } = makeDir$1;
-const makeDir = u$e(_makeDir);
-var mkdirs$2 = {
-  mkdirs: makeDir,
-  mkdirsSync: makeDirSync,
+De.makeDir = async (e, t) => (it(e), rt.mkdir(e, {
+  mode: ot(t),
+  recursive: !0
+}));
+De.makeDirSync = (e, t) => (it(e), rt.mkdirSync(e, {
+  mode: ot(t),
+  recursive: !0
+}));
+const dn = O.fromPromise, { makeDir: hn, makeDirSync: $e } = De, Ee = dn(hn);
+var J = {
+  mkdirs: Ee,
+  mkdirsSync: $e,
   // alias
-  mkdirp: makeDir,
-  mkdirpSync: makeDirSync,
-  ensureDir: makeDir,
-  ensureDirSync: makeDirSync
+  mkdirp: Ee,
+  mkdirpSync: $e,
+  ensureDir: Ee,
+  ensureDirSync: $e
 };
-const u$d = universalify$1.fromPromise;
-const fs$e = fs$h;
-function pathExists$6(path2) {
-  return fs$e.access(path2).then(() => true).catch(() => false);
+const wn = O.fromPromise, ct = A;
+function pn(e) {
+  return ct.access(e).then(() => !0).catch(() => !1);
 }
-var pathExists_1 = {
-  pathExists: u$d(pathExists$6),
-  pathExistsSync: fs$e.existsSync
+var z = {
+  pathExists: wn(pn),
+  pathExistsSync: ct.existsSync
 };
-const fs$d = fs$h;
-const u$c = universalify$1.fromPromise;
-async function utimesMillis$1(path2, atime, mtime) {
-  const fd = await fs$d.open(path2, "r+");
-  let closeErr = null;
+const Q = A, Sn = O.fromPromise;
+async function vn(e, t, n) {
+  const i = await Q.open(e, "r+");
+  let r = null;
   try {
-    await fs$d.futimes(fd, atime, mtime);
+    await Q.futimes(i, t, n);
   } finally {
     try {
-      await fs$d.close(fd);
-    } catch (e) {
-      closeErr = e;
+      await Q.close(i);
+    } catch (o) {
+      r = o;
     }
   }
-  if (closeErr) {
-    throw closeErr;
-  }
+  if (r)
+    throw r;
 }
-function utimesMillisSync$1(path2, atime, mtime) {
-  const fd = fs$d.openSync(path2, "r+");
-  fs$d.futimesSync(fd, atime, mtime);
-  return fs$d.closeSync(fd);
+function $n(e, t, n) {
+  const i = Q.openSync(e, "r+");
+  return Q.futimesSync(i, t, n), Q.closeSync(i);
 }
-var utimes = {
-  utimesMillis: u$c(utimesMillis$1),
-  utimesMillisSync: utimesMillisSync$1
+var at = {
+  utimesMillis: Sn(vn),
+  utimesMillisSync: $n
 };
-const fs$c = fs$h;
-const path$a = require$$1;
-const u$b = universalify$1.fromPromise;
-function getStats$1(src, dest, opts) {
-  const statFunc = opts.dereference ? (file2) => fs$c.stat(file2, { bigint: true }) : (file2) => fs$c.lstat(file2, { bigint: true });
+const Z = A, D = M, Me = O.fromPromise;
+function En(e, t, n) {
+  const i = n.dereference ? (r) => Z.stat(r, { bigint: !0 }) : (r) => Z.lstat(r, { bigint: !0 });
   return Promise.all([
-    statFunc(src),
-    statFunc(dest).catch((err) => {
-      if (err.code === "ENOENT") return null;
-      throw err;
+    i(e),
+    i(t).catch((r) => {
+      if (r.code === "ENOENT") return null;
+      throw r;
     })
-  ]).then(([srcStat, destStat]) => ({ srcStat, destStat }));
+  ]).then(([r, o]) => ({ srcStat: r, destStat: o }));
 }
-function getStatsSync(src, dest, opts) {
-  let destStat;
-  const statFunc = opts.dereference ? (file2) => fs$c.statSync(file2, { bigint: true }) : (file2) => fs$c.lstatSync(file2, { bigint: true });
-  const srcStat = statFunc(src);
+function kn(e, t, n) {
+  let i;
+  const r = n.dereference ? (c) => Z.statSync(c, { bigint: !0 }) : (c) => Z.lstatSync(c, { bigint: !0 }), o = r(e);
   try {
-    destStat = statFunc(dest);
-  } catch (err) {
-    if (err.code === "ENOENT") return { srcStat, destStat: null };
-    throw err;
+    i = r(t);
+  } catch (c) {
+    if (c.code === "ENOENT") return { srcStat: o, destStat: null };
+    throw c;
   }
-  return { srcStat, destStat };
+  return { srcStat: o, destStat: i };
 }
-async function checkPaths(src, dest, funcName, opts) {
-  const { srcStat, destStat } = await getStats$1(src, dest, opts);
-  if (destStat) {
-    if (areIdentical$2(srcStat, destStat)) {
-      const srcBaseName = path$a.basename(src);
-      const destBaseName = path$a.basename(dest);
-      if (funcName === "move" && srcBaseName !== destBaseName && srcBaseName.toLowerCase() === destBaseName.toLowerCase()) {
-        return { srcStat, destStat, isChangingCase: true };
-      }
+async function gn(e, t, n, i) {
+  const { srcStat: r, destStat: o } = await En(e, t, i);
+  if (o) {
+    if (ue(r, o)) {
+      const c = D.basename(e), l = D.basename(t);
+      if (n === "move" && c !== l && c.toLowerCase() === l.toLowerCase())
+        return { srcStat: r, destStat: o, isChangingCase: !0 };
       throw new Error("Source and destination must not be the same.");
     }
-    if (srcStat.isDirectory() && !destStat.isDirectory()) {
-      throw new Error(`Cannot overwrite non-directory '${dest}' with directory '${src}'.`);
-    }
-    if (!srcStat.isDirectory() && destStat.isDirectory()) {
-      throw new Error(`Cannot overwrite directory '${dest}' with non-directory '${src}'.`);
-    }
+    if (r.isDirectory() && !o.isDirectory())
+      throw new Error(`Cannot overwrite non-directory '${t}' with directory '${e}'.`);
+    if (!r.isDirectory() && o.isDirectory())
+      throw new Error(`Cannot overwrite directory '${t}' with non-directory '${e}'.`);
   }
-  if (srcStat.isDirectory() && isSrcSubdir(src, dest)) {
-    throw new Error(errMsg(src, dest, funcName));
-  }
-  return { srcStat, destStat };
+  if (r.isDirectory() && xe(e, t))
+    throw new Error(we(e, t, n));
+  return { srcStat: r, destStat: o };
 }
-function checkPathsSync(src, dest, funcName, opts) {
-  const { srcStat, destStat } = getStatsSync(src, dest, opts);
-  if (destStat) {
-    if (areIdentical$2(srcStat, destStat)) {
-      const srcBaseName = path$a.basename(src);
-      const destBaseName = path$a.basename(dest);
-      if (funcName === "move" && srcBaseName !== destBaseName && srcBaseName.toLowerCase() === destBaseName.toLowerCase()) {
-        return { srcStat, destStat, isChangingCase: true };
-      }
+function Pn(e, t, n, i) {
+  const { srcStat: r, destStat: o } = kn(e, t, i);
+  if (o) {
+    if (ue(r, o)) {
+      const c = D.basename(e), l = D.basename(t);
+      if (n === "move" && c !== l && c.toLowerCase() === l.toLowerCase())
+        return { srcStat: r, destStat: o, isChangingCase: !0 };
       throw new Error("Source and destination must not be the same.");
     }
-    if (srcStat.isDirectory() && !destStat.isDirectory()) {
-      throw new Error(`Cannot overwrite non-directory '${dest}' with directory '${src}'.`);
-    }
-    if (!srcStat.isDirectory() && destStat.isDirectory()) {
-      throw new Error(`Cannot overwrite directory '${dest}' with non-directory '${src}'.`);
-    }
+    if (r.isDirectory() && !o.isDirectory())
+      throw new Error(`Cannot overwrite non-directory '${t}' with directory '${e}'.`);
+    if (!r.isDirectory() && o.isDirectory())
+      throw new Error(`Cannot overwrite directory '${t}' with non-directory '${e}'.`);
   }
-  if (srcStat.isDirectory() && isSrcSubdir(src, dest)) {
-    throw new Error(errMsg(src, dest, funcName));
-  }
-  return { srcStat, destStat };
+  if (r.isDirectory() && xe(e, t))
+    throw new Error(we(e, t, n));
+  return { srcStat: r, destStat: o };
 }
-async function checkParentPaths(src, srcStat, dest, funcName) {
-  const srcParent = path$a.resolve(path$a.dirname(src));
-  const destParent = path$a.resolve(path$a.dirname(dest));
-  if (destParent === srcParent || destParent === path$a.parse(destParent).root) return;
-  let destStat;
+async function st(e, t, n, i) {
+  const r = D.resolve(D.dirname(e)), o = D.resolve(D.dirname(n));
+  if (o === r || o === D.parse(o).root) return;
+  let c;
   try {
-    destStat = await fs$c.stat(destParent, { bigint: true });
-  } catch (err) {
-    if (err.code === "ENOENT") return;
-    throw err;
+    c = await Z.stat(o, { bigint: !0 });
+  } catch (l) {
+    if (l.code === "ENOENT") return;
+    throw l;
   }
-  if (areIdentical$2(srcStat, destStat)) {
-    throw new Error(errMsg(src, dest, funcName));
-  }
-  return checkParentPaths(src, srcStat, destParent, funcName);
+  if (ue(t, c))
+    throw new Error(we(e, n, i));
+  return st(e, t, o, i);
 }
-function checkParentPathsSync(src, srcStat, dest, funcName) {
-  const srcParent = path$a.resolve(path$a.dirname(src));
-  const destParent = path$a.resolve(path$a.dirname(dest));
-  if (destParent === srcParent || destParent === path$a.parse(destParent).root) return;
-  let destStat;
+function ut(e, t, n, i) {
+  const r = D.resolve(D.dirname(e)), o = D.resolve(D.dirname(n));
+  if (o === r || o === D.parse(o).root) return;
+  let c;
   try {
-    destStat = fs$c.statSync(destParent, { bigint: true });
-  } catch (err) {
-    if (err.code === "ENOENT") return;
-    throw err;
+    c = Z.statSync(o, { bigint: !0 });
+  } catch (l) {
+    if (l.code === "ENOENT") return;
+    throw l;
   }
-  if (areIdentical$2(srcStat, destStat)) {
-    throw new Error(errMsg(src, dest, funcName));
-  }
-  return checkParentPathsSync(src, srcStat, destParent, funcName);
+  if (ue(t, c))
+    throw new Error(we(e, n, i));
+  return ut(e, t, o, i);
 }
-function areIdentical$2(srcStat, destStat) {
-  return destStat.ino !== void 0 && destStat.dev !== void 0 && destStat.ino === srcStat.ino && destStat.dev === srcStat.dev;
+function ue(e, t) {
+  return t.ino !== void 0 && t.dev !== void 0 && t.ino === e.ino && t.dev === e.dev;
 }
-function isSrcSubdir(src, dest) {
-  const srcArr = path$a.resolve(src).split(path$a.sep).filter((i) => i);
-  const destArr = path$a.resolve(dest).split(path$a.sep).filter((i) => i);
-  return srcArr.every((cur, i) => destArr[i] === cur);
+function xe(e, t) {
+  const n = D.resolve(e).split(D.sep).filter((r) => r), i = D.resolve(t).split(D.sep).filter((r) => r);
+  return n.every((r, o) => i[o] === r);
 }
-function errMsg(src, dest, funcName) {
-  return `Cannot ${funcName} '${src}' to a subdirectory of itself, '${dest}'.`;
+function we(e, t, n) {
+  return `Cannot ${n} '${e}' to a subdirectory of itself, '${t}'.`;
 }
-var stat$4 = {
+var ne = {
   // checkPaths
-  checkPaths: u$b(checkPaths),
-  checkPathsSync,
+  checkPaths: Me(gn),
+  checkPathsSync: Pn,
   // checkParent
-  checkParentPaths: u$b(checkParentPaths),
-  checkParentPathsSync,
+  checkParentPaths: Me(st),
+  checkParentPathsSync: ut,
   // Misc
-  isSrcSubdir,
-  areIdentical: areIdentical$2
+  isSrcSubdir: xe,
+  areIdentical: ue
 };
-async function asyncIteratorConcurrentProcess$1(iterator, fn) {
-  const promises = [];
-  for await (const item of iterator) {
-    promises.push(
-      fn(item).then(
+async function Fn(e, t) {
+  const n = [];
+  for await (const i of e)
+    n.push(
+      t(i).then(
         () => null,
-        (err) => err ?? new Error("unknown error")
+        (r) => r ?? new Error("unknown error")
       )
     );
-  }
   await Promise.all(
-    promises.map(
-      (promise) => promise.then((possibleErr) => {
-        if (possibleErr !== null) throw possibleErr;
+    n.map(
+      (i) => i.then((r) => {
+        if (r !== null) throw r;
       })
     )
   );
 }
-var async = {
-  asyncIteratorConcurrentProcess: asyncIteratorConcurrentProcess$1
+var bn = {
+  asyncIteratorConcurrentProcess: Fn
 };
-const fs$b = fs$h;
-const path$9 = require$$1;
-const { mkdirs: mkdirs$1 } = mkdirs$2;
-const { pathExists: pathExists$5 } = pathExists_1;
-const { utimesMillis } = utimes;
-const stat$3 = stat$4;
-const { asyncIteratorConcurrentProcess } = async;
-async function copy$2(src, dest, opts = {}) {
-  if (typeof opts === "function") {
-    opts = { filter: opts };
-  }
-  opts.clobber = "clobber" in opts ? !!opts.clobber : true;
-  opts.overwrite = "overwrite" in opts ? !!opts.overwrite : opts.clobber;
-  if (opts.preserveTimestamps && process.arch === "ia32") {
-    process.emitWarning(
-      "Using the preserveTimestamps option in 32-bit node is not recommended;\n\n	see https://github.com/jprichardson/node-fs-extra/issues/269",
-      "Warning",
-      "fs-extra-WARN0001"
-    );
-  }
-  const { srcStat, destStat } = await stat$3.checkPaths(src, dest, "copy", opts);
-  await stat$3.checkParentPaths(src, srcStat, dest, "copy");
-  const include = await runFilter(src, dest, opts);
-  if (!include) return;
-  const destParent = path$9.dirname(dest);
-  const dirExists = await pathExists$5(destParent);
-  if (!dirExists) {
-    await mkdirs$1(destParent);
-  }
-  await getStatsAndPerformCopy(destStat, src, dest, opts);
+const j = A, oe = M, { mkdirs: On } = J, { pathExists: _n } = z, { utimesMillis: Dn } = at, ce = ne, { asyncIteratorConcurrentProcess: xn } = bn;
+async function Tn(e, t, n = {}) {
+  typeof n == "function" && (n = { filter: n }), n.clobber = "clobber" in n ? !!n.clobber : !0, n.overwrite = "overwrite" in n ? !!n.overwrite : n.clobber, n.preserveTimestamps && process.arch === "ia32" && process.emitWarning(
+    `Using the preserveTimestamps option in 32-bit node is not recommended;
+
+	see https://github.com/jprichardson/node-fs-extra/issues/269`,
+    "Warning",
+    "fs-extra-WARN0001"
+  );
+  const { srcStat: i, destStat: r } = await ce.checkPaths(e, t, "copy", n);
+  if (await ce.checkParentPaths(e, i, t, "copy"), !await lt(e, t, n)) return;
+  const c = oe.dirname(t);
+  await _n(c) || await On(c), await ft(r, e, t, n);
 }
-async function runFilter(src, dest, opts) {
-  if (!opts.filter) return true;
-  return opts.filter(src, dest);
+async function lt(e, t, n) {
+  return n.filter ? n.filter(e, t) : !0;
 }
-async function getStatsAndPerformCopy(destStat, src, dest, opts) {
-  const statFn = opts.dereference ? fs$b.stat : fs$b.lstat;
-  const srcStat = await statFn(src);
-  if (srcStat.isDirectory()) return onDir$1(srcStat, destStat, src, dest, opts);
-  if (srcStat.isFile() || srcStat.isCharacterDevice() || srcStat.isBlockDevice()) return onFile$1(srcStat, destStat, src, dest, opts);
-  if (srcStat.isSymbolicLink()) return onLink$1(destStat, src, dest, opts);
-  if (srcStat.isSocket()) throw new Error(`Cannot copy a socket file: ${src}`);
-  if (srcStat.isFIFO()) throw new Error(`Cannot copy a FIFO pipe: ${src}`);
-  throw new Error(`Unknown file: ${src}`);
+async function ft(e, t, n, i) {
+  const o = await (i.dereference ? j.stat : j.lstat)(t);
+  if (o.isDirectory()) return In(o, e, t, n, i);
+  if (o.isFile() || o.isCharacterDevice() || o.isBlockDevice()) return Nn(o, e, t, n, i);
+  if (o.isSymbolicLink()) return Rn(e, t, n, i);
+  throw o.isSocket() ? new Error(`Cannot copy a socket file: ${t}`) : o.isFIFO() ? new Error(`Cannot copy a FIFO pipe: ${t}`) : new Error(`Unknown file: ${t}`);
 }
-async function onFile$1(srcStat, destStat, src, dest, opts) {
-  if (!destStat) return copyFile$1(srcStat, src, dest, opts);
-  if (opts.overwrite) {
-    await fs$b.unlink(dest);
-    return copyFile$1(srcStat, src, dest, opts);
+async function Nn(e, t, n, i, r) {
+  if (!t) return Ue(e, n, i, r);
+  if (r.overwrite)
+    return await j.unlink(i), Ue(e, n, i, r);
+  if (r.errorOnExist)
+    throw new Error(`'${i}' already exists`);
+}
+async function Ue(e, t, n, i) {
+  if (await j.copyFile(t, n), i.preserveTimestamps) {
+    Cn(e.mode) && await jn(n, e.mode);
+    const r = await j.stat(t);
+    await Dn(n, r.atime, r.mtime);
   }
-  if (opts.errorOnExist) {
-    throw new Error(`'${dest}' already exists`);
-  }
+  return j.chmod(n, e.mode);
 }
-async function copyFile$1(srcStat, src, dest, opts) {
-  await fs$b.copyFile(src, dest);
-  if (opts.preserveTimestamps) {
-    if (fileIsNotWritable$1(srcStat.mode)) {
-      await makeFileWritable$1(dest, srcStat.mode);
+function Cn(e) {
+  return (e & 128) === 0;
+}
+function jn(e, t) {
+  return j.chmod(e, t | 128);
+}
+async function In(e, t, n, i, r) {
+  t || await j.mkdir(i), await xn(await j.opendir(n), async (o) => {
+    const c = oe.join(n, o.name), l = oe.join(i, o.name);
+    if (await lt(c, l, r)) {
+      const { destStat: S } = await ce.checkPaths(c, l, "copy", r);
+      await ft(S, c, l, r);
     }
-    const updatedSrcStat = await fs$b.stat(src);
-    await utimesMillis(dest, updatedSrcStat.atime, updatedSrcStat.mtime);
-  }
-  return fs$b.chmod(dest, srcStat.mode);
+  }), t || await j.chmod(i, e.mode);
 }
-function fileIsNotWritable$1(srcMode) {
-  return (srcMode & 128) === 0;
-}
-function makeFileWritable$1(dest, srcMode) {
-  return fs$b.chmod(dest, srcMode | 128);
-}
-async function onDir$1(srcStat, destStat, src, dest, opts) {
-  if (!destStat) {
-    await fs$b.mkdir(dest);
-  }
-  await asyncIteratorConcurrentProcess(await fs$b.opendir(src), async (item) => {
-    const srcItem = path$9.join(src, item.name);
-    const destItem = path$9.join(dest, item.name);
-    const include = await runFilter(srcItem, destItem, opts);
-    if (include) {
-      const { destStat: destStat2 } = await stat$3.checkPaths(srcItem, destItem, "copy", opts);
-      await getStatsAndPerformCopy(destStat2, srcItem, destItem, opts);
-    }
-  });
-  if (!destStat) {
-    await fs$b.chmod(dest, srcStat.mode);
-  }
-}
-async function onLink$1(destStat, src, dest, opts) {
-  let resolvedSrc = await fs$b.readlink(src);
-  if (opts.dereference) {
-    resolvedSrc = path$9.resolve(process.cwd(), resolvedSrc);
-  }
-  if (!destStat) {
-    return fs$b.symlink(resolvedSrc, dest);
-  }
-  let resolvedDest = null;
+async function Rn(e, t, n, i) {
+  let r = await j.readlink(t);
+  if (i.dereference && (r = oe.resolve(process.cwd(), r)), !e)
+    return j.symlink(r, n);
+  let o = null;
   try {
-    resolvedDest = await fs$b.readlink(dest);
-  } catch (e) {
-    if (e.code === "EINVAL" || e.code === "UNKNOWN") return fs$b.symlink(resolvedSrc, dest);
-    throw e;
+    o = await j.readlink(n);
+  } catch (c) {
+    if (c.code === "EINVAL" || c.code === "UNKNOWN") return j.symlink(r, n);
+    throw c;
   }
-  if (opts.dereference) {
-    resolvedDest = path$9.resolve(process.cwd(), resolvedDest);
-  }
-  if (stat$3.isSrcSubdir(resolvedSrc, resolvedDest)) {
-    throw new Error(`Cannot copy '${resolvedSrc}' to a subdirectory of itself, '${resolvedDest}'.`);
-  }
-  if (stat$3.isSrcSubdir(resolvedDest, resolvedSrc)) {
-    throw new Error(`Cannot overwrite '${resolvedDest}' with '${resolvedSrc}'.`);
-  }
-  await fs$b.unlink(dest);
-  return fs$b.symlink(resolvedSrc, dest);
+  if (i.dereference && (o = oe.resolve(process.cwd(), o)), ce.isSrcSubdir(r, o))
+    throw new Error(`Cannot copy '${r}' to a subdirectory of itself, '${o}'.`);
+  if (ce.isSrcSubdir(o, r))
+    throw new Error(`Cannot overwrite '${o}' with '${r}'.`);
+  return await j.unlink(n), j.symlink(r, n);
 }
-var copy_1 = copy$2;
-const fs$a = gracefulFs;
-const path$8 = require$$1;
-const mkdirsSync$1 = mkdirs$2.mkdirsSync;
-const utimesMillisSync = utimes.utimesMillisSync;
-const stat$2 = stat$4;
-function copySync$1(src, dest, opts) {
-  if (typeof opts === "function") {
-    opts = { filter: opts };
-  }
-  opts = opts || {};
-  opts.clobber = "clobber" in opts ? !!opts.clobber : true;
-  opts.overwrite = "overwrite" in opts ? !!opts.overwrite : opts.clobber;
-  if (opts.preserveTimestamps && process.arch === "ia32") {
-    process.emitWarning(
-      "Using the preserveTimestamps option in 32-bit node is not recommended;\n\n	see https://github.com/jprichardson/node-fs-extra/issues/269",
-      "Warning",
-      "fs-extra-WARN0002"
-    );
-  }
-  const { srcStat, destStat } = stat$2.checkPathsSync(src, dest, "copy", opts);
-  stat$2.checkParentPathsSync(src, srcStat, dest, "copy");
-  if (opts.filter && !opts.filter(src, dest)) return;
-  const destParent = path$8.dirname(dest);
-  if (!fs$a.existsSync(destParent)) mkdirsSync$1(destParent);
-  return getStats(destStat, src, dest, opts);
+var Ln = Tn;
+const R = te, ae = M, An = J.mkdirsSync, Wn = at.utimesMillisSync, se = ne;
+function Mn(e, t, n) {
+  typeof n == "function" && (n = { filter: n }), n = n || {}, n.clobber = "clobber" in n ? !!n.clobber : !0, n.overwrite = "overwrite" in n ? !!n.overwrite : n.clobber, n.preserveTimestamps && process.arch === "ia32" && process.emitWarning(
+    `Using the preserveTimestamps option in 32-bit node is not recommended;
+
+	see https://github.com/jprichardson/node-fs-extra/issues/269`,
+    "Warning",
+    "fs-extra-WARN0002"
+  );
+  const { srcStat: i, destStat: r } = se.checkPathsSync(e, t, "copy", n);
+  if (se.checkParentPathsSync(e, i, t, "copy"), n.filter && !n.filter(e, t)) return;
+  const o = ae.dirname(t);
+  return R.existsSync(o) || An(o), yt(r, e, t, n);
 }
-function getStats(destStat, src, dest, opts) {
-  const statSync = opts.dereference ? fs$a.statSync : fs$a.lstatSync;
-  const srcStat = statSync(src);
-  if (srcStat.isDirectory()) return onDir(srcStat, destStat, src, dest, opts);
-  else if (srcStat.isFile() || srcStat.isCharacterDevice() || srcStat.isBlockDevice()) return onFile(srcStat, destStat, src, dest, opts);
-  else if (srcStat.isSymbolicLink()) return onLink(destStat, src, dest, opts);
-  else if (srcStat.isSocket()) throw new Error(`Cannot copy a socket file: ${src}`);
-  else if (srcStat.isFIFO()) throw new Error(`Cannot copy a FIFO pipe: ${src}`);
-  throw new Error(`Unknown file: ${src}`);
+function yt(e, t, n, i) {
+  const o = (i.dereference ? R.statSync : R.lstatSync)(t);
+  if (o.isDirectory()) return Yn(o, e, t, n, i);
+  if (o.isFile() || o.isCharacterDevice() || o.isBlockDevice()) return Un(o, e, t, n, i);
+  if (o.isSymbolicLink()) return zn(e, t, n, i);
+  throw o.isSocket() ? new Error(`Cannot copy a socket file: ${t}`) : o.isFIFO() ? new Error(`Cannot copy a FIFO pipe: ${t}`) : new Error(`Unknown file: ${t}`);
 }
-function onFile(srcStat, destStat, src, dest, opts) {
-  if (!destStat) return copyFile(srcStat, src, dest, opts);
-  return mayCopyFile(srcStat, src, dest, opts);
+function Un(e, t, n, i, r) {
+  return t ? Bn(e, n, i, r) : mt(e, n, i, r);
 }
-function mayCopyFile(srcStat, src, dest, opts) {
-  if (opts.overwrite) {
-    fs$a.unlinkSync(dest);
-    return copyFile(srcStat, src, dest, opts);
-  } else if (opts.errorOnExist) {
-    throw new Error(`'${dest}' already exists`);
-  }
+function Bn(e, t, n, i) {
+  if (i.overwrite)
+    return R.unlinkSync(n), mt(e, t, n, i);
+  if (i.errorOnExist)
+    throw new Error(`'${n}' already exists`);
 }
-function copyFile(srcStat, src, dest, opts) {
-  fs$a.copyFileSync(src, dest);
-  if (opts.preserveTimestamps) handleTimestamps(srcStat.mode, src, dest);
-  return setDestMode(dest, srcStat.mode);
+function mt(e, t, n, i) {
+  return R.copyFileSync(t, n), i.preserveTimestamps && Jn(e.mode, t, n), Te(n, e.mode);
 }
-function handleTimestamps(srcMode, src, dest) {
-  if (fileIsNotWritable(srcMode)) makeFileWritable(dest, srcMode);
-  return setDestTimestamps(src, dest);
+function Jn(e, t, n) {
+  return Vn(e) && qn(n, e), Hn(t, n);
 }
-function fileIsNotWritable(srcMode) {
-  return (srcMode & 128) === 0;
+function Vn(e) {
+  return (e & 128) === 0;
 }
-function makeFileWritable(dest, srcMode) {
-  return setDestMode(dest, srcMode | 128);
+function qn(e, t) {
+  return Te(e, t | 128);
 }
-function setDestMode(dest, srcMode) {
-  return fs$a.chmodSync(dest, srcMode);
+function Te(e, t) {
+  return R.chmodSync(e, t);
 }
-function setDestTimestamps(src, dest) {
-  const updatedSrcStat = fs$a.statSync(src);
-  return utimesMillisSync(dest, updatedSrcStat.atime, updatedSrcStat.mtime);
+function Hn(e, t) {
+  const n = R.statSync(e);
+  return Wn(t, n.atime, n.mtime);
 }
-function onDir(srcStat, destStat, src, dest, opts) {
-  if (!destStat) return mkDirAndCopy(srcStat.mode, src, dest, opts);
-  return copyDir(src, dest, opts);
+function Yn(e, t, n, i, r) {
+  return t ? dt(n, i, r) : Gn(e.mode, n, i, r);
 }
-function mkDirAndCopy(srcMode, src, dest, opts) {
-  fs$a.mkdirSync(dest);
-  copyDir(src, dest, opts);
-  return setDestMode(dest, srcMode);
+function Gn(e, t, n, i) {
+  return R.mkdirSync(n), dt(t, n, i), Te(n, e);
 }
-function copyDir(src, dest, opts) {
-  const dir = fs$a.opendirSync(src);
+function dt(e, t, n) {
+  const i = R.opendirSync(e);
   try {
-    let dirent;
-    while ((dirent = dir.readSync()) !== null) {
-      copyDirItem(dirent.name, src, dest, opts);
-    }
+    let r;
+    for (; (r = i.readSync()) !== null; )
+      Kn(r.name, e, t, n);
   } finally {
-    dir.closeSync();
+    i.closeSync();
   }
 }
-function copyDirItem(item, src, dest, opts) {
-  const srcItem = path$8.join(src, item);
-  const destItem = path$8.join(dest, item);
-  if (opts.filter && !opts.filter(srcItem, destItem)) return;
-  const { destStat } = stat$2.checkPathsSync(srcItem, destItem, "copy", opts);
-  return getStats(destStat, srcItem, destItem, opts);
+function Kn(e, t, n, i) {
+  const r = ae.join(t, e), o = ae.join(n, e);
+  if (i.filter && !i.filter(r, o)) return;
+  const { destStat: c } = se.checkPathsSync(r, o, "copy", i);
+  return yt(c, r, o, i);
 }
-function onLink(destStat, src, dest, opts) {
-  let resolvedSrc = fs$a.readlinkSync(src);
-  if (opts.dereference) {
-    resolvedSrc = path$8.resolve(process.cwd(), resolvedSrc);
-  }
-  if (!destStat) {
-    return fs$a.symlinkSync(resolvedSrc, dest);
-  } else {
-    let resolvedDest;
+function zn(e, t, n, i) {
+  let r = R.readlinkSync(t);
+  if (i.dereference && (r = ae.resolve(process.cwd(), r)), e) {
+    let o;
     try {
-      resolvedDest = fs$a.readlinkSync(dest);
-    } catch (err) {
-      if (err.code === "EINVAL" || err.code === "UNKNOWN") return fs$a.symlinkSync(resolvedSrc, dest);
-      throw err;
+      o = R.readlinkSync(n);
+    } catch (c) {
+      if (c.code === "EINVAL" || c.code === "UNKNOWN") return R.symlinkSync(r, n);
+      throw c;
     }
-    if (opts.dereference) {
-      resolvedDest = path$8.resolve(process.cwd(), resolvedDest);
-    }
-    if (stat$2.isSrcSubdir(resolvedSrc, resolvedDest)) {
-      throw new Error(`Cannot copy '${resolvedSrc}' to a subdirectory of itself, '${resolvedDest}'.`);
-    }
-    if (stat$2.isSrcSubdir(resolvedDest, resolvedSrc)) {
-      throw new Error(`Cannot overwrite '${resolvedDest}' with '${resolvedSrc}'.`);
-    }
-    return copyLink(resolvedSrc, dest);
-  }
+    if (i.dereference && (o = ae.resolve(process.cwd(), o)), se.isSrcSubdir(r, o))
+      throw new Error(`Cannot copy '${r}' to a subdirectory of itself, '${o}'.`);
+    if (se.isSrcSubdir(o, r))
+      throw new Error(`Cannot overwrite '${o}' with '${r}'.`);
+    return Xn(r, n);
+  } else
+    return R.symlinkSync(r, n);
 }
-function copyLink(resolvedSrc, dest) {
-  fs$a.unlinkSync(dest);
-  return fs$a.symlinkSync(resolvedSrc, dest);
+function Xn(e, t) {
+  return R.unlinkSync(t), R.symlinkSync(e, t);
 }
-var copySync_1 = copySync$1;
-const u$a = universalify$1.fromPromise;
-var copy$1 = {
-  copy: u$a(copy_1),
-  copySync: copySync_1
+var Qn = Mn;
+const Zn = O.fromPromise;
+var Ne = {
+  copy: Zn(Ln),
+  copySync: Qn
 };
-const fs$9 = gracefulFs;
-const u$9 = universalify$1.fromCallback;
-function remove$2(path2, callback) {
-  fs$9.rm(path2, { recursive: true, force: true }, callback);
+const ht = te, er = O.fromCallback;
+function tr(e, t) {
+  ht.rm(e, { recursive: !0, force: !0 }, t);
 }
-function removeSync$1(path2) {
-  fs$9.rmSync(path2, { recursive: true, force: true });
+function nr(e) {
+  ht.rmSync(e, { recursive: !0, force: !0 });
 }
-var remove_1 = {
-  remove: u$9(remove$2),
-  removeSync: removeSync$1
+var pe = {
+  remove: er(tr),
+  removeSync: nr
 };
-const u$8 = universalify$1.fromPromise;
-const fs$8 = fs$h;
-const path$7 = require$$1;
-const mkdir$3 = mkdirs$2;
-const remove$1 = remove_1;
-const emptyDir = u$8(async function emptyDir2(dir) {
-  let items;
+const rr = O.fromPromise, wt = A, pt = M, St = J, vt = pe, Be = rr(async function(t) {
+  let n;
   try {
-    items = await fs$8.readdir(dir);
+    n = await wt.readdir(t);
   } catch {
-    return mkdir$3.mkdirs(dir);
+    return St.mkdirs(t);
   }
-  return Promise.all(items.map((item) => remove$1.remove(path$7.join(dir, item))));
+  return Promise.all(n.map((i) => vt.remove(pt.join(t, i))));
 });
-function emptyDirSync(dir) {
-  let items;
+function Je(e) {
+  let t;
   try {
-    items = fs$8.readdirSync(dir);
+    t = wt.readdirSync(e);
   } catch {
-    return mkdir$3.mkdirsSync(dir);
+    return St.mkdirsSync(e);
   }
-  items.forEach((item) => {
-    item = path$7.join(dir, item);
-    remove$1.removeSync(item);
+  t.forEach((n) => {
+    n = pt.join(e, n), vt.removeSync(n);
   });
 }
-var empty = {
-  emptyDirSync,
-  emptydirSync: emptyDirSync,
-  emptyDir,
-  emptydir: emptyDir
+var ir = {
+  emptyDirSync: Je,
+  emptydirSync: Je,
+  emptyDir: Be,
+  emptydir: Be
 };
-const u$7 = universalify$1.fromPromise;
-const path$6 = require$$1;
-const fs$7 = fs$h;
-const mkdir$2 = mkdirs$2;
-async function createFile$1(file2) {
-  let stats;
+const or = O.fromPromise, $t = M, V = A, Et = J;
+async function cr(e) {
+  let t;
   try {
-    stats = await fs$7.stat(file2);
+    t = await V.stat(e);
   } catch {
   }
-  if (stats && stats.isFile()) return;
-  const dir = path$6.dirname(file2);
-  let dirStats = null;
+  if (t && t.isFile()) return;
+  const n = $t.dirname(e);
+  let i = null;
   try {
-    dirStats = await fs$7.stat(dir);
-  } catch (err) {
-    if (err.code === "ENOENT") {
-      await mkdir$2.mkdirs(dir);
-      await fs$7.writeFile(file2, "");
+    i = await V.stat(n);
+  } catch (r) {
+    if (r.code === "ENOENT") {
+      await Et.mkdirs(n), await V.writeFile(e, "");
       return;
-    } else {
-      throw err;
-    }
+    } else
+      throw r;
   }
-  if (dirStats.isDirectory()) {
-    await fs$7.writeFile(file2, "");
-  } else {
-    await fs$7.readdir(dir);
-  }
+  i.isDirectory() ? await V.writeFile(e, "") : await V.readdir(n);
 }
-function createFileSync$1(file2) {
-  let stats;
+function ar(e) {
+  let t;
   try {
-    stats = fs$7.statSync(file2);
+    t = V.statSync(e);
   } catch {
   }
-  if (stats && stats.isFile()) return;
-  const dir = path$6.dirname(file2);
+  if (t && t.isFile()) return;
+  const n = $t.dirname(e);
   try {
-    if (!fs$7.statSync(dir).isDirectory()) {
-      fs$7.readdirSync(dir);
-    }
-  } catch (err) {
-    if (err && err.code === "ENOENT") mkdir$2.mkdirsSync(dir);
-    else throw err;
+    V.statSync(n).isDirectory() || V.readdirSync(n);
+  } catch (i) {
+    if (i && i.code === "ENOENT") Et.mkdirsSync(n);
+    else throw i;
   }
-  fs$7.writeFileSync(file2, "");
+  V.writeFileSync(e, "");
 }
-var file = {
-  createFile: u$7(createFile$1),
-  createFileSync: createFileSync$1
+var sr = {
+  createFile: or(cr),
+  createFileSync: ar
 };
-const u$6 = universalify$1.fromPromise;
-const path$5 = require$$1;
-const fs$6 = fs$h;
-const mkdir$1 = mkdirs$2;
-const { pathExists: pathExists$4 } = pathExists_1;
-const { areIdentical: areIdentical$1 } = stat$4;
-async function createLink$1(srcpath, dstpath) {
-  let dstStat;
+const ur = O.fromPromise, kt = M, Y = A, gt = J, { pathExists: lr } = z, { areIdentical: Pt } = ne;
+async function fr(e, t) {
+  let n;
   try {
-    dstStat = await fs$6.lstat(dstpath);
+    n = await Y.lstat(t);
   } catch {
   }
-  let srcStat;
+  let i;
   try {
-    srcStat = await fs$6.lstat(srcpath);
-  } catch (err) {
-    err.message = err.message.replace("lstat", "ensureLink");
-    throw err;
+    i = await Y.lstat(e);
+  } catch (c) {
+    throw c.message = c.message.replace("lstat", "ensureLink"), c;
   }
-  if (dstStat && areIdentical$1(srcStat, dstStat)) return;
-  const dir = path$5.dirname(dstpath);
-  const dirExists = await pathExists$4(dir);
-  if (!dirExists) {
-    await mkdir$1.mkdirs(dir);
-  }
-  await fs$6.link(srcpath, dstpath);
+  if (n && Pt(i, n)) return;
+  const r = kt.dirname(t);
+  await lr(r) || await gt.mkdirs(r), await Y.link(e, t);
 }
-function createLinkSync$1(srcpath, dstpath) {
-  let dstStat;
+function yr(e, t) {
+  let n;
   try {
-    dstStat = fs$6.lstatSync(dstpath);
+    n = Y.lstatSync(t);
   } catch {
   }
   try {
-    const srcStat = fs$6.lstatSync(srcpath);
-    if (dstStat && areIdentical$1(srcStat, dstStat)) return;
-  } catch (err) {
-    err.message = err.message.replace("lstat", "ensureLink");
-    throw err;
+    const o = Y.lstatSync(e);
+    if (n && Pt(o, n)) return;
+  } catch (o) {
+    throw o.message = o.message.replace("lstat", "ensureLink"), o;
   }
-  const dir = path$5.dirname(dstpath);
-  const dirExists = fs$6.existsSync(dir);
-  if (dirExists) return fs$6.linkSync(srcpath, dstpath);
-  mkdir$1.mkdirsSync(dir);
-  return fs$6.linkSync(srcpath, dstpath);
+  const i = kt.dirname(t);
+  return Y.existsSync(i) || gt.mkdirsSync(i), Y.linkSync(e, t);
 }
-var link = {
-  createLink: u$6(createLink$1),
-  createLinkSync: createLinkSync$1
+var mr = {
+  createLink: ur(fr),
+  createLinkSync: yr
 };
-const path$4 = require$$1;
-const fs$5 = fs$h;
-const { pathExists: pathExists$3 } = pathExists_1;
-const u$5 = universalify$1.fromPromise;
-async function symlinkPaths$1(srcpath, dstpath) {
-  if (path$4.isAbsolute(srcpath)) {
+const G = M, ie = A, { pathExists: dr } = z, hr = O.fromPromise;
+async function wr(e, t) {
+  if (G.isAbsolute(e)) {
     try {
-      await fs$5.lstat(srcpath);
-    } catch (err) {
-      err.message = err.message.replace("lstat", "ensureSymlink");
-      throw err;
+      await ie.lstat(e);
+    } catch (o) {
+      throw o.message = o.message.replace("lstat", "ensureSymlink"), o;
     }
     return {
-      toCwd: srcpath,
-      toDst: srcpath
+      toCwd: e,
+      toDst: e
     };
   }
-  const dstdir = path$4.dirname(dstpath);
-  const relativeToDst = path$4.join(dstdir, srcpath);
-  const exists = await pathExists$3(relativeToDst);
-  if (exists) {
+  const n = G.dirname(t), i = G.join(n, e);
+  if (await dr(i))
     return {
-      toCwd: relativeToDst,
-      toDst: srcpath
+      toCwd: i,
+      toDst: e
     };
-  }
   try {
-    await fs$5.lstat(srcpath);
-  } catch (err) {
-    err.message = err.message.replace("lstat", "ensureSymlink");
-    throw err;
+    await ie.lstat(e);
+  } catch (o) {
+    throw o.message = o.message.replace("lstat", "ensureSymlink"), o;
   }
   return {
-    toCwd: srcpath,
-    toDst: path$4.relative(dstdir, srcpath)
+    toCwd: e,
+    toDst: G.relative(n, e)
   };
 }
-function symlinkPathsSync$1(srcpath, dstpath) {
-  if (path$4.isAbsolute(srcpath)) {
-    const exists2 = fs$5.existsSync(srcpath);
-    if (!exists2) throw new Error("absolute srcpath does not exist");
+function pr(e, t) {
+  if (G.isAbsolute(e)) {
+    if (!ie.existsSync(e)) throw new Error("absolute srcpath does not exist");
     return {
-      toCwd: srcpath,
-      toDst: srcpath
+      toCwd: e,
+      toDst: e
     };
   }
-  const dstdir = path$4.dirname(dstpath);
-  const relativeToDst = path$4.join(dstdir, srcpath);
-  const exists = fs$5.existsSync(relativeToDst);
-  if (exists) {
+  const n = G.dirname(t), i = G.join(n, e);
+  if (ie.existsSync(i))
     return {
-      toCwd: relativeToDst,
-      toDst: srcpath
+      toCwd: i,
+      toDst: e
     };
-  }
-  const srcExists = fs$5.existsSync(srcpath);
-  if (!srcExists) throw new Error("relative srcpath does not exist");
+  if (!ie.existsSync(e)) throw new Error("relative srcpath does not exist");
   return {
-    toCwd: srcpath,
-    toDst: path$4.relative(dstdir, srcpath)
+    toCwd: e,
+    toDst: G.relative(n, e)
   };
 }
-var symlinkPaths_1 = {
-  symlinkPaths: u$5(symlinkPaths$1),
-  symlinkPathsSync: symlinkPathsSync$1
+var Sr = {
+  symlinkPaths: hr(wr),
+  symlinkPathsSync: pr
 };
-const fs$4 = fs$h;
-const u$4 = universalify$1.fromPromise;
-async function symlinkType$1(srcpath, type) {
-  if (type) return type;
-  let stats;
+const Ft = A, vr = O.fromPromise;
+async function $r(e, t) {
+  if (t) return t;
+  let n;
   try {
-    stats = await fs$4.lstat(srcpath);
+    n = await Ft.lstat(e);
   } catch {
     return "file";
   }
-  return stats && stats.isDirectory() ? "dir" : "file";
+  return n && n.isDirectory() ? "dir" : "file";
 }
-function symlinkTypeSync$1(srcpath, type) {
-  if (type) return type;
-  let stats;
+function Er(e, t) {
+  if (t) return t;
+  let n;
   try {
-    stats = fs$4.lstatSync(srcpath);
+    n = Ft.lstatSync(e);
   } catch {
     return "file";
   }
-  return stats && stats.isDirectory() ? "dir" : "file";
+  return n && n.isDirectory() ? "dir" : "file";
 }
-var symlinkType_1 = {
-  symlinkType: u$4(symlinkType$1),
-  symlinkTypeSync: symlinkTypeSync$1
+var kr = {
+  symlinkType: vr($r),
+  symlinkTypeSync: Er
 };
-const u$3 = universalify$1.fromPromise;
-const path$3 = require$$1;
-const fs$3 = fs$h;
-const { mkdirs, mkdirsSync } = mkdirs$2;
-const { symlinkPaths, symlinkPathsSync } = symlinkPaths_1;
-const { symlinkType, symlinkTypeSync } = symlinkType_1;
-const { pathExists: pathExists$2 } = pathExists_1;
-const { areIdentical } = stat$4;
-async function createSymlink$1(srcpath, dstpath, type) {
-  let stats;
+const gr = O.fromPromise, bt = M, B = A, { mkdirs: Pr, mkdirsSync: Fr } = J, { symlinkPaths: br, symlinkPathsSync: Or } = Sr, { symlinkType: _r, symlinkTypeSync: Dr } = kr, { pathExists: xr } = z, { areIdentical: Ot } = ne;
+async function Tr(e, t, n) {
+  let i;
   try {
-    stats = await fs$3.lstat(dstpath);
+    i = await B.lstat(t);
   } catch {
   }
-  if (stats && stats.isSymbolicLink()) {
-    const [srcStat, dstStat] = await Promise.all([
-      fs$3.stat(srcpath),
-      fs$3.stat(dstpath)
+  if (i && i.isSymbolicLink()) {
+    const [l, d] = await Promise.all([
+      B.stat(e),
+      B.stat(t)
     ]);
-    if (areIdentical(srcStat, dstStat)) return;
+    if (Ot(l, d)) return;
   }
-  const relative = await symlinkPaths(srcpath, dstpath);
-  srcpath = relative.toDst;
-  const toType = await symlinkType(relative.toCwd, type);
-  const dir = path$3.dirname(dstpath);
-  if (!await pathExists$2(dir)) {
-    await mkdirs(dir);
-  }
-  return fs$3.symlink(srcpath, dstpath, toType);
+  const r = await br(e, t);
+  e = r.toDst;
+  const o = await _r(r.toCwd, n), c = bt.dirname(t);
+  return await xr(c) || await Pr(c), B.symlink(e, t, o);
 }
-function createSymlinkSync$1(srcpath, dstpath, type) {
-  let stats;
+function Nr(e, t, n) {
+  let i;
   try {
-    stats = fs$3.lstatSync(dstpath);
+    i = B.lstatSync(t);
   } catch {
   }
-  if (stats && stats.isSymbolicLink()) {
-    const srcStat = fs$3.statSync(srcpath);
-    const dstStat = fs$3.statSync(dstpath);
-    if (areIdentical(srcStat, dstStat)) return;
+  if (i && i.isSymbolicLink()) {
+    const l = B.statSync(e), d = B.statSync(t);
+    if (Ot(l, d)) return;
   }
-  const relative = symlinkPathsSync(srcpath, dstpath);
-  srcpath = relative.toDst;
-  type = symlinkTypeSync(relative.toCwd, type);
-  const dir = path$3.dirname(dstpath);
-  const exists = fs$3.existsSync(dir);
-  if (exists) return fs$3.symlinkSync(srcpath, dstpath, type);
-  mkdirsSync(dir);
-  return fs$3.symlinkSync(srcpath, dstpath, type);
+  const r = Or(e, t);
+  e = r.toDst, n = Dr(r.toCwd, n);
+  const o = bt.dirname(t);
+  return B.existsSync(o) || Fr(o), B.symlinkSync(e, t, n);
 }
-var symlink = {
-  createSymlink: u$3(createSymlink$1),
-  createSymlinkSync: createSymlinkSync$1
+var Cr = {
+  createSymlink: gr(Tr),
+  createSymlinkSync: Nr
 };
-const { createFile, createFileSync } = file;
-const { createLink, createLinkSync } = link;
-const { createSymlink, createSymlinkSync } = symlink;
-var ensure = {
+const { createFile: Ve, createFileSync: qe } = sr, { createLink: He, createLinkSync: Ye } = mr, { createSymlink: Ge, createSymlinkSync: Ke } = Cr;
+var jr = {
   // file
-  createFile,
-  createFileSync,
-  ensureFile: createFile,
-  ensureFileSync: createFileSync,
+  createFile: Ve,
+  createFileSync: qe,
+  ensureFile: Ve,
+  ensureFileSync: qe,
   // link
-  createLink,
-  createLinkSync,
-  ensureLink: createLink,
-  ensureLinkSync: createLinkSync,
+  createLink: He,
+  createLinkSync: Ye,
+  ensureLink: He,
+  ensureLinkSync: Ye,
   // symlink
-  createSymlink,
-  createSymlinkSync,
-  ensureSymlink: createSymlink,
-  ensureSymlinkSync: createSymlinkSync
+  createSymlink: Ge,
+  createSymlinkSync: Ke,
+  ensureSymlink: Ge,
+  ensureSymlinkSync: Ke
 };
-function stringify$3(obj, { EOL = "\n", finalEOL = true, replacer = null, spaces } = {}) {
-  const EOF = finalEOL ? EOL : "";
-  const str = JSON.stringify(obj, replacer, spaces);
-  return str.replace(/\n/g, EOL) + EOF;
+function Ir(e, { EOL: t = `
+`, finalEOL: n = !0, replacer: i = null, spaces: r } = {}) {
+  const o = n ? t : "";
+  return JSON.stringify(e, i, r).replace(/\n/g, t) + o;
 }
-function stripBom$1(content) {
-  if (Buffer.isBuffer(content)) content = content.toString("utf8");
-  return content.replace(/^\uFEFF/, "");
+function Rr(e) {
+  return Buffer.isBuffer(e) && (e = e.toString("utf8")), e.replace(/^\uFEFF/, "");
 }
-var utils = { stringify: stringify$3, stripBom: stripBom$1 };
-let _fs;
+var Ce = { stringify: Ir, stripBom: Rr };
+let ee;
 try {
-  _fs = gracefulFs;
-} catch (_) {
-  _fs = require$$0$2;
+  ee = te;
+} catch {
+  ee = et;
 }
-const universalify = universalify$1;
-const { stringify: stringify$2, stripBom } = utils;
-async function _readFile(file2, options = {}) {
-  if (typeof options === "string") {
-    options = { encoding: options };
-  }
-  const fs2 = options.fs || _fs;
-  const shouldThrow = "throws" in options ? options.throws : true;
-  let data = await universalify.fromCallback(fs2.readFile)(file2, options);
-  data = stripBom(data);
-  let obj;
+const Se = O, { stringify: _t, stripBom: Dt } = Ce;
+async function Lr(e, t = {}) {
+  typeof t == "string" && (t = { encoding: t });
+  const n = t.fs || ee, i = "throws" in t ? t.throws : !0;
+  let r = await Se.fromCallback(n.readFile)(e, t);
+  r = Dt(r);
+  let o;
   try {
-    obj = JSON.parse(data, options ? options.reviver : null);
-  } catch (err) {
-    if (shouldThrow) {
-      err.message = `${file2}: ${err.message}`;
-      throw err;
-    } else {
-      return null;
-    }
+    o = JSON.parse(r, t ? t.reviver : null);
+  } catch (c) {
+    if (i)
+      throw c.message = `${e}: ${c.message}`, c;
+    return null;
   }
-  return obj;
+  return o;
 }
-const readFile = universalify.fromPromise(_readFile);
-function readFileSync(file2, options = {}) {
-  if (typeof options === "string") {
-    options = { encoding: options };
-  }
-  const fs2 = options.fs || _fs;
-  const shouldThrow = "throws" in options ? options.throws : true;
+const Ar = Se.fromPromise(Lr);
+function Wr(e, t = {}) {
+  typeof t == "string" && (t = { encoding: t });
+  const n = t.fs || ee, i = "throws" in t ? t.throws : !0;
   try {
-    let content = fs2.readFileSync(file2, options);
-    content = stripBom(content);
-    return JSON.parse(content, options.reviver);
-  } catch (err) {
-    if (shouldThrow) {
-      err.message = `${file2}: ${err.message}`;
-      throw err;
-    } else {
-      return null;
-    }
+    let r = n.readFileSync(e, t);
+    return r = Dt(r), JSON.parse(r, t.reviver);
+  } catch (r) {
+    if (i)
+      throw r.message = `${e}: ${r.message}`, r;
+    return null;
   }
 }
-async function _writeFile(file2, obj, options = {}) {
-  const fs2 = options.fs || _fs;
-  const str = stringify$2(obj, options);
-  await universalify.fromCallback(fs2.writeFile)(file2, str, options);
+async function Mr(e, t, n = {}) {
+  const i = n.fs || ee, r = _t(t, n);
+  await Se.fromCallback(i.writeFile)(e, r, n);
 }
-const writeFile = universalify.fromPromise(_writeFile);
-function writeFileSync(file2, obj, options = {}) {
-  const fs2 = options.fs || _fs;
-  const str = stringify$2(obj, options);
-  return fs2.writeFileSync(file2, str, options);
+const Ur = Se.fromPromise(Mr);
+function Br(e, t, n = {}) {
+  const i = n.fs || ee, r = _t(t, n);
+  return i.writeFileSync(e, r, n);
 }
-var jsonfile$1 = {
-  readFile,
-  readFileSync,
-  writeFile,
-  writeFileSync
+var Jr = {
+  readFile: Ar,
+  readFileSync: Wr,
+  writeFile: Ur,
+  writeFileSync: Br
 };
-const jsonFile$1 = jsonfile$1;
-var jsonfile = {
+const ye = Jr;
+var Vr = {
   // jsonfile exports
-  readJson: jsonFile$1.readFile,
-  readJsonSync: jsonFile$1.readFileSync,
-  writeJson: jsonFile$1.writeFile,
-  writeJsonSync: jsonFile$1.writeFileSync
+  readJson: ye.readFile,
+  readJsonSync: ye.readFileSync,
+  writeJson: ye.writeFile,
+  writeJsonSync: ye.writeFileSync
 };
-const u$2 = universalify$1.fromPromise;
-const fs$2 = fs$h;
-const path$2 = require$$1;
-const mkdir = mkdirs$2;
-const pathExists$1 = pathExists_1.pathExists;
-async function outputFile$1(file2, data, encoding = "utf-8") {
-  const dir = path$2.dirname(file2);
-  if (!await pathExists$1(dir)) {
-    await mkdir.mkdirs(dir);
-  }
-  return fs$2.writeFile(file2, data, encoding);
+const qr = O.fromPromise, Pe = A, xt = M, Tt = J, Hr = z.pathExists;
+async function Yr(e, t, n = "utf-8") {
+  const i = xt.dirname(e);
+  return await Hr(i) || await Tt.mkdirs(i), Pe.writeFile(e, t, n);
 }
-function outputFileSync$1(file2, ...args) {
-  const dir = path$2.dirname(file2);
-  if (!fs$2.existsSync(dir)) {
-    mkdir.mkdirsSync(dir);
-  }
-  fs$2.writeFileSync(file2, ...args);
+function Gr(e, ...t) {
+  const n = xt.dirname(e);
+  Pe.existsSync(n) || Tt.mkdirsSync(n), Pe.writeFileSync(e, ...t);
 }
-var outputFile_1 = {
-  outputFile: u$2(outputFile$1),
-  outputFileSync: outputFileSync$1
+var je = {
+  outputFile: qr(Yr),
+  outputFileSync: Gr
 };
-const { stringify: stringify$1 } = utils;
-const { outputFile } = outputFile_1;
-async function outputJson(file2, data, options = {}) {
-  const str = stringify$1(data, options);
-  await outputFile(file2, str, options);
+const { stringify: Kr } = Ce, { outputFile: zr } = je;
+async function Xr(e, t, n = {}) {
+  const i = Kr(t, n);
+  await zr(e, i, n);
 }
-var outputJson_1 = outputJson;
-const { stringify } = utils;
-const { outputFileSync } = outputFile_1;
-function outputJsonSync(file2, data, options) {
-  const str = stringify(data, options);
-  outputFileSync(file2, str, options);
+var Qr = Xr;
+const { stringify: Zr } = Ce, { outputFileSync: ei } = je;
+function ti(e, t, n) {
+  const i = Zr(t, n);
+  ei(e, i, n);
 }
-var outputJsonSync_1 = outputJsonSync;
-const u$1 = universalify$1.fromPromise;
-const jsonFile = jsonfile;
-jsonFile.outputJson = u$1(outputJson_1);
-jsonFile.outputJsonSync = outputJsonSync_1;
-jsonFile.outputJSON = jsonFile.outputJson;
-jsonFile.outputJSONSync = jsonFile.outputJsonSync;
-jsonFile.writeJSON = jsonFile.writeJson;
-jsonFile.writeJSONSync = jsonFile.writeJsonSync;
-jsonFile.readJSON = jsonFile.readJson;
-jsonFile.readJSONSync = jsonFile.readJsonSync;
-var json = jsonFile;
-const fs$1 = fs$h;
-const path$1 = require$$1;
-const { copy } = copy$1;
-const { remove } = remove_1;
-const { mkdirp } = mkdirs$2;
-const { pathExists } = pathExists_1;
-const stat$1 = stat$4;
-async function move$1(src, dest, opts = {}) {
-  const overwrite = opts.overwrite || opts.clobber || false;
-  const { srcStat, isChangingCase = false } = await stat$1.checkPaths(src, dest, "move", opts);
-  await stat$1.checkParentPaths(src, srcStat, dest, "move");
-  const destParent = path$1.dirname(dest);
-  const parsedParentPath = path$1.parse(destParent);
-  if (parsedParentPath.root !== destParent) {
-    await mkdirp(destParent);
-  }
-  return doRename$1(src, dest, overwrite, isChangingCase);
+var ni = ti;
+const ri = O.fromPromise, L = Vr;
+L.outputJson = ri(Qr);
+L.outputJsonSync = ni;
+L.outputJSON = L.outputJson;
+L.outputJSONSync = L.outputJsonSync;
+L.writeJSON = L.writeJson;
+L.writeJSONSync = L.writeJsonSync;
+L.readJSON = L.readJson;
+L.readJSONSync = L.readJsonSync;
+var ii = L;
+const oi = A, ze = M, { copy: ci } = Ne, { remove: Nt } = pe, { mkdirp: ai } = J, { pathExists: si } = z, Xe = ne;
+async function ui(e, t, n = {}) {
+  const i = n.overwrite || n.clobber || !1, { srcStat: r, isChangingCase: o = !1 } = await Xe.checkPaths(e, t, "move", n);
+  await Xe.checkParentPaths(e, r, t, "move");
+  const c = ze.dirname(t);
+  return ze.parse(c).root !== c && await ai(c), li(e, t, i, o);
 }
-async function doRename$1(src, dest, overwrite, isChangingCase) {
-  if (!isChangingCase) {
-    if (overwrite) {
-      await remove(dest);
-    } else if (await pathExists(dest)) {
+async function li(e, t, n, i) {
+  if (!i) {
+    if (n)
+      await Nt(t);
+    else if (await si(t))
       throw new Error("dest already exists.");
-    }
   }
   try {
-    await fs$1.rename(src, dest);
-  } catch (err) {
-    if (err.code !== "EXDEV") {
-      throw err;
-    }
-    await moveAcrossDevice$1(src, dest, overwrite);
+    await oi.rename(e, t);
+  } catch (r) {
+    if (r.code !== "EXDEV")
+      throw r;
+    await fi(e, t, n);
   }
 }
-async function moveAcrossDevice$1(src, dest, overwrite) {
-  const opts = {
-    overwrite,
-    errorOnExist: true,
-    preserveTimestamps: true
-  };
-  await copy(src, dest, opts);
-  return remove(src);
+async function fi(e, t, n) {
+  return await ci(e, t, {
+    overwrite: n,
+    errorOnExist: !0,
+    preserveTimestamps: !0
+  }), Nt(e);
 }
-var move_1 = move$1;
-const fs = gracefulFs;
-const path = require$$1;
-const copySync = copy$1.copySync;
-const removeSync = remove_1.removeSync;
-const mkdirpSync = mkdirs$2.mkdirpSync;
-const stat = stat$4;
-function moveSync(src, dest, opts) {
-  opts = opts || {};
-  const overwrite = opts.overwrite || opts.clobber || false;
-  const { srcStat, isChangingCase = false } = stat.checkPathsSync(src, dest, "move", opts);
-  stat.checkParentPathsSync(src, srcStat, dest, "move");
-  if (!isParentRoot(dest)) mkdirpSync(path.dirname(dest));
-  return doRename(src, dest, overwrite, isChangingCase);
+var yi = ui;
+const Ct = te, Fe = M, mi = Ne.copySync, jt = pe.removeSync, di = J.mkdirpSync, Qe = ne;
+function hi(e, t, n) {
+  n = n || {};
+  const i = n.overwrite || n.clobber || !1, { srcStat: r, isChangingCase: o = !1 } = Qe.checkPathsSync(e, t, "move", n);
+  return Qe.checkParentPathsSync(e, r, t, "move"), wi(t) || di(Fe.dirname(t)), pi(e, t, i, o);
 }
-function isParentRoot(dest) {
-  const parent = path.dirname(dest);
-  const parsedPath = path.parse(parent);
-  return parsedPath.root === parent;
+function wi(e) {
+  const t = Fe.dirname(e);
+  return Fe.parse(t).root === t;
 }
-function doRename(src, dest, overwrite, isChangingCase) {
-  if (isChangingCase) return rename(src, dest, overwrite);
-  if (overwrite) {
-    removeSync(dest);
-    return rename(src, dest, overwrite);
-  }
-  if (fs.existsSync(dest)) throw new Error("dest already exists.");
-  return rename(src, dest, overwrite);
+function pi(e, t, n, i) {
+  if (i) return ke(e, t, n);
+  if (n)
+    return jt(t), ke(e, t, n);
+  if (Ct.existsSync(t)) throw new Error("dest already exists.");
+  return ke(e, t, n);
 }
-function rename(src, dest, overwrite) {
+function ke(e, t, n) {
   try {
-    fs.renameSync(src, dest);
-  } catch (err) {
-    if (err.code !== "EXDEV") throw err;
-    return moveAcrossDevice(src, dest, overwrite);
+    Ct.renameSync(e, t);
+  } catch (i) {
+    if (i.code !== "EXDEV") throw i;
+    return Si(e, t, n);
   }
 }
-function moveAcrossDevice(src, dest, overwrite) {
-  const opts = {
-    overwrite,
-    errorOnExist: true,
-    preserveTimestamps: true
-  };
-  copySync(src, dest, opts);
-  return removeSync(src);
+function Si(e, t, n) {
+  return mi(e, t, {
+    overwrite: n,
+    errorOnExist: !0,
+    preserveTimestamps: !0
+  }), jt(e);
 }
-var moveSync_1 = moveSync;
-const u = universalify$1.fromPromise;
-var move = {
-  move: u(move_1),
-  moveSync: moveSync_1
-};
-var lib = {
+var vi = hi;
+const $i = O.fromPromise;
+var Ei = {
+  move: $i(yi),
+  moveSync: vi
+}, U = {
   // Export promiseified graceful-fs:
-  ...fs$h,
+  ...A,
   // Export extra methods:
-  ...copy$1,
-  ...empty,
-  ...ensure,
-  ...json,
-  ...mkdirs$2,
-  ...move,
-  ...outputFile_1,
-  ...pathExists_1,
-  ...remove_1
+  ...Ne,
+  ...ir,
+  ...jr,
+  ...ii,
+  ...J,
+  ...Ei,
+  ...je,
+  ...z,
+  ...pe
 };
-const SUPPORTED_FORMATS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"];
-const ALLOWED_OUTPUT_FORMATS = [".jpg", ".jpeg", ".png", ".webp"];
-async function convertImageFormat(inputPath, outputPath, targetFormat, options = {}) {
+const ki = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"], gi = [".jpg", ".jpeg", ".png", ".webp"];
+async function It(e, t, n, i = {}) {
   try {
-    if (!lib.existsSync(inputPath)) {
-      throw new Error(`文件不存在: ${inputPath}`);
-    }
-    const inputExt = path$c.extname(inputPath).toLowerCase();
-    console.log(inputExt);
-    if (!SUPPORTED_FORMATS.includes(inputExt)) {
-      throw new Error(`不支持的输入格式: ${inputExt}`);
-    }
-    const outputExt = path$c.extname(outputPath).toLowerCase();
-    if (!ALLOWED_OUTPUT_FORMATS.includes(outputExt)) {
-      throw new Error(`不支持的输出格式: ${outputExt}`);
-    }
-    let pipeline = sharp(inputPath);
-    if (targetFormat === ".jpg" || targetFormat === ".jpeg") {
-      pipeline = pipeline.flatten({
-        background: options.backgroundColor ?? { r: 255, g: 255, b: 255 }
-      });
-    }
-    switch (targetFormat) {
+    if (!U.existsSync(e))
+      throw new Error(`文件不存在: ${e}`);
+    const r = F.extname(e).toLowerCase();
+    if (console.log(r), !ki.includes(r))
+      throw new Error(`不支持的输入格式: ${r}`);
+    const o = F.extname(t).toLowerCase();
+    if (!gi.includes(o))
+      throw new Error(`不支持的输出格式: ${o}`);
+    let c = Gt(e);
+    switch ((n === ".jpg" || n === ".jpeg") && (c = c.flatten({
+      background: i.backgroundColor ?? { r: 255, g: 255, b: 255 }
+    })), n) {
       case ".jpg":
       case ".jpeg":
-        pipeline = pipeline.jpeg({ quality: options.quality ?? 90, mozjpeg: true });
+        c = c.jpeg({ quality: i.quality ?? 90, mozjpeg: !0 });
         break;
       case ".png":
-        pipeline = pipeline.png({ quality: options.quality ?? 90 });
+        c = c.png({ quality: i.quality ?? 90 });
         break;
       case ".webp":
-        pipeline = pipeline.webp({ quality: options.quality ?? 90 });
+        c = c.webp({ quality: i.quality ?? 90 });
         break;
     }
-    await pipeline.toFile(outputPath);
-    const inputSize = lib.statSync(inputPath).size / 1024;
-    const outputSize = lib.statSync(outputPath).size / 1024;
-    return { success: true, message: [`转换成功 ${outputPath} 原始大小: ${inputSize.toFixed(2)} KB -> 转换后大小: ${outputSize.toFixed(2)} KB`] };
-  } catch (error) {
-    console.error(`转换失败 ${path$c.basename(inputPath)}: ${error instanceof Error ? error.message : "未知错误"}`);
-    return { success: false, error: error instanceof Error ? error.message : "未知错误" };
+    await c.toFile(t);
+    const l = U.statSync(e).size / 1024, d = U.statSync(t).size / 1024;
+    return { success: !0, message: [`转换成功 ${t} 原始大小: ${l.toFixed(2)} KB -> 转换后大小: ${d.toFixed(2)} KB`] };
+  } catch (r) {
+    return console.error(`转换失败 ${F.basename(e)}: ${r instanceof Error ? r.message : "未知错误"}`), { success: !1, error: r instanceof Error ? r.message : "未知错误" };
   }
 }
-const SUPPORTED_IMAGE_EXTENSIONS = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"]);
-function normalizeTargetFormat(targetFormat) {
-  return targetFormat.startsWith(".") ? targetFormat : `.${targetFormat}`;
+const Pi = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"]);
+function Rt(e) {
+  return e.startsWith(".") ? e : `.${e}`;
 }
-async function handleCoverImage(filePath, type, quality) {
-  const targetFormat = normalizeTargetFormat(type);
-  const basename = path$c.dirname(filePath);
-  const name = path$c.extname(filePath);
-  const filenameWithoutExt = path$c.basename(filePath, name);
-  const outputPath = path$c.join(basename, `${filenameWithoutExt}-压缩${targetFormat}`);
-  return await convertImageFormat(filePath, outputPath, targetFormat, {
+async function Fi(e, t, n) {
+  const i = Rt(t), r = F.dirname(e), o = F.extname(e), c = F.basename(e, o), l = F.join(r, `${c}-压缩${i}`);
+  return await It(e, l, i, {
     backgroundColor: { r: 255, g: 255, b: 255 },
-    quality
+    quality: n
   });
 }
-async function compressDirectory(sourceDir, targetFormat, quality) {
-  const normalizedFormat = normalizeTargetFormat(targetFormat);
-  const outputDir = `${sourceDir}-压缩`;
-  if (await lib.pathExists(outputDir)) {
-    await lib.remove(outputDir);
-  }
-  await lib.ensureDir(outputDir);
-  const results = [];
-  async function traverse(currentSourceDir, currentOutputDir) {
-    const entries = await lib.readdir(currentSourceDir);
-    for (const entry of entries) {
-      const sourcePath = path$c.join(currentSourceDir, entry);
-      const stat2 = await lib.stat(sourcePath);
-      const destinationPath = path$c.join(currentOutputDir, entry);
-      if (stat2.isDirectory()) {
-        await lib.ensureDir(destinationPath);
-        await traverse(sourcePath, destinationPath);
+async function bi(e, t, n) {
+  const i = Rt(t), r = `${e}-压缩`;
+  await U.pathExists(r) && await U.remove(r), await U.ensureDir(r);
+  const o = [];
+  async function c(l, d) {
+    const S = await U.readdir(l);
+    for (const a of S) {
+      const u = F.join(l, a), f = await U.stat(u), s = F.join(d, a);
+      if (f.isDirectory()) {
+        await U.ensureDir(s), await c(u, s);
         continue;
       }
-      const ext = path$c.extname(sourcePath).toLowerCase();
-      if (!SUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
-        await lib.copy(sourcePath, destinationPath);
+      const y = F.extname(u).toLowerCase();
+      if (!Pi.has(y)) {
+        await U.copy(u, s);
         continue;
       }
-      const fileBaseName = path$c.basename(sourcePath, ext);
-      const imageOutputPath = path$c.join(currentOutputDir, `${fileBaseName}${normalizedFormat}`);
-      const convertResult = await convertImageFormat(sourcePath, imageOutputPath, normalizedFormat, {
+      const v = F.basename(u, y), w = F.join(d, `${v}${i}`), E = await It(u, w, i, {
         backgroundColor: { r: 255, g: 255, b: 255 },
-        quality
+        quality: n
       });
-      results.push(convertResult);
+      o.push(E);
     }
   }
-  await traverse(sourceDir, outputDir);
-  return { outputDir, results };
+  return await c(e, r), { outputDir: r, results: o };
 }
-async function handleCoverDirectory(filePaths, type, quality) {
-  const tasks = [];
-  for (const filePath of filePaths) {
-    tasks.push(compressDirectory(filePath, type, quality));
-  }
-  const outputs = await Promise.all(tasks);
-  return outputs;
+async function Oi(e, t, n) {
+  const i = [];
+  for (const o of e)
+    i.push(bi(o, t, n));
+  return await Promise.all(i);
 }
-function handleOpenDialog() {
-  ipcMain.handle("open:dialog", async (_event, targetType, compressQuality, type) => {
-    const res = await dialog.showOpenDialog({
-      properties: type === "file" ? ["openFile"] : ["openDirectory"]
+function _i() {
+  Bt.handle("open:dialog", async (e, t, n, i) => {
+    const r = await Jt.showOpenDialog({
+      properties: i === "file" ? ["openFile"] : ["openDirectory"]
     });
-    if (res.canceled) {
-      return false;
-    }
-    if (type === "file") {
-      return await handleCoverImage(res.filePaths[0], targetType, compressQuality);
-    }
-    const result = await handleCoverDirectory(res.filePaths, targetType, compressQuality);
-    return result;
+    return r.canceled ? !1 : i === "file" ? await Fi(r.filePaths[0], t, n) : await Oi(r.filePaths, t, n);
   });
 }
-const __dirname = path$c.dirname(fileURLToPath(import.meta.url));
-process.env.APP_ROOT = path$c.join(__dirname, "..");
-const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
-const MAIN_DIST = path$c.join(process.env.APP_ROOT, "dist-electron");
-const RENDERER_DIST = path$c.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$c.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
-let win;
-function createWindow() {
-  win = new BrowserWindow({
-    icon: path$c.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+const Lt = F.dirname(Ut(import.meta.url));
+process.env.APP_ROOT = F.join(Lt, "..");
+const be = process.env.VITE_DEV_SERVER_URL, Mi = F.join(process.env.APP_ROOT, "dist-electron"), At = F.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = be ? F.join(process.env.APP_ROOT, "public") : At;
+let H;
+function Wt() {
+  H = new Ze({
+    icon: F.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
-      preload: path$c.join(__dirname, "preload.mjs")
+      preload: F.join(Lt, "preload.mjs")
     }
-  });
-  win.webContents.on("did-finish-load", () => {
-    win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  });
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(path$c.join(RENDERER_DIST, "index.html"));
-  }
+  }), H.webContents.on("did-finish-load", () => {
+    H == null || H.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  }), be ? H.loadURL(be) : H.loadFile(F.join(At, "index.html"));
 }
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-    win = null;
-  }
+de.on("window-all-closed", () => {
+  process.platform !== "darwin" && (de.quit(), H = null);
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+de.on("activate", () => {
+  Ze.getAllWindows().length === 0 && Wt();
 });
-app.whenReady().then(() => {
-  createWindow();
-  handleOpenDialog();
+de.whenReady().then(() => {
+  Xt(), Wt(), _i();
 });
 export {
-  MAIN_DIST,
-  RENDERER_DIST,
-  VITE_DEV_SERVER_URL
+  Mi as MAIN_DIST,
+  At as RENDERER_DIST,
+  be as VITE_DEV_SERVER_URL
 };
