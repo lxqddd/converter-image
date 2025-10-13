@@ -1,0 +1,38 @@
+{
+  "name": "dealwith-img",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "postinstall": "npx electron-rebuild"
+  },
+  "dependencies": {
+    "element-plus": "^2.11.4",
+    "fs-extra": "^11.3.2",
+    "optional": "^0.1.4",
+    "sharp": "^0.34.4",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^5.4.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.7.1",
+    "@types/sharp": "^0.32.0",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3",
+    "electron-rebuild": "^3.2.9",
+    "eslint": "^9.36.0",
+    "typescript": "^5.2.2",
+    "unplugin-auto-import": "^20.2.0",
+    "unplugin-vue-components": "^29.1.0",
+    "vite": "^5.1.6",
+    "vite-plugin-electron": "^0.28.6",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vue-tsc": "^2.0.26"
+  }
+}
