@@ -15,7 +15,6 @@ const resultData = ref<any>([])
 async function handleSelect(type: 'file' | 'directory') {
   transformData.value.type = type
   const res = await window.ipcRenderer.invoke('open:dialog', transformData.value.targetType, transformData.value.compressQuality, transformData.value.type)
-  console.log(res)
   if (!res) {
     ElMessage.error('取消选择')
     return
