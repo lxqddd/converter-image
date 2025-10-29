@@ -16,10 +16,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-13, ubuntu-latest]
+        os: [windows-latest, macos-13, macos-14-arm64, ubuntu-latest]
         include:
           - os: macos-13
             target: dmg
+            arch: x64
+          - os: macos-14-arm64
+            target: dmg
+            arch: arm64
           - os: windows-latest
             target: nsis
           - os: ubuntu-latest
@@ -48,7 +52,7 @@ jobs:
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-build
+          name: ${{ matrix.os }}-${{ matrix.arch || 'default' }}-build
           path: release/ # electron-builder 的输出目录
 
   # 发布到 GitHub Releases
