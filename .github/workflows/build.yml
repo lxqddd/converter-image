@@ -39,7 +39,7 @@ jobs:
 
       - name: 安装 macOS x64 sharp 二进制（交叉编译）
         if: runner.os == 'macOS'
-        run: npm install @img/sharp-darwin-x64
+        run: npm install @img/sharp-darwin-x64 --force
 
       - name: 构建应用
         run: npm run build # 执行 package.json 中的 dist 命令
