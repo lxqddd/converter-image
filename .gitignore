@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 release
 dist-electron
+
+# claude
+settings.local.json
