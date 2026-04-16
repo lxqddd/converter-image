@@ -15,7 +15,6 @@
   "dependencies": {
     "element-plus": "^2.11.4",
     "fs-extra": "^11.3.2",
-    "optional": "^0.1.4",
     "sharp": "^0.34.4",
     "vue": "^3.4.21"
   },

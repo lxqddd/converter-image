@@ -33,4 +33,3 @@ export function registerSharpBinaries() {
     process.env[envVar] = path.join(binaryRoot, filename)
   }
 }
-

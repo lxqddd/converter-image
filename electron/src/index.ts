@@ -1,9 +1,10 @@
 import path from 'node:path'
 import { dialog, ipcMain } from 'electron'
 import * as fs from 'fs-extra'
+import { SUPPORTED_IMAGE_EXTENSIONS } from './constants'
 import { convertImageFormat } from './converterImage'
 
-const SUPPORTED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'])
+const SUPPORTED_IMAGE_EXTENSION_SET = new Set(SUPPORTED_IMAGE_EXTENSIONS)
 
 function normalizeTargetFormat(targetFormat: string) {
   return targetFormat.startsWith('.') ? targetFormat : `.${targetFormat}`
@@ -11,10 +12,10 @@ function normalizeTargetFormat(targetFormat: string) {
 
 async function handleCoverImage(filePath: string, type: string, quality: number) {
   const targetFormat = normalizeTargetFormat(type)
-  const basename = path.dirname(filePath)
-  const name = path.extname(filePath)
-  const filenameWithoutExt = path.basename(filePath, name)
-  const outputPath = path.join(basename, `${filenameWithoutExt}-压缩${targetFormat}`)
+  const dirName = path.dirname(filePath)
+  const ext = path.extname(filePath)
+  const filenameWithoutExt = path.basename(filePath, ext)
+  const outputPath = path.join(dirName, `${filenameWithoutExt}-压缩${targetFormat}`)
   return await convertImageFormat(filePath, outputPath, targetFormat, {
     backgroundColor: { r: 255, g: 255, b: 255 },
     quality,
@@ -33,10 +34,13 @@ async function compressDirectory(sourceDir: string, targetFormat: string, qualit
 
   async function traverse(currentSourceDir: string, currentOutputDir: string) {
     const entries = await fs.readdir(currentSourceDir)
+    const tasks: Promise<void>[] = []
+
     for (const entry of entries) {
       const sourcePath = path.join(currentSourceDir, entry)
       const stat = await fs.stat(sourcePath)
       const destinationPath = path.join(currentOutputDir, entry)
+
       if (stat.isDirectory()) {
         await fs.ensureDir(destinationPath)
         await traverse(sourcePath, destinationPath)
@@ -44,19 +48,24 @@ async function compressDirectory(sourceDir: string, targetFormat: string, qualit
       }
 
       const ext = path.extname(sourcePath).toLowerCase()
-      if (!SUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
-        await fs.copy(sourcePath, destinationPath)
+      if (!SUPPORTED_IMAGE_EXTENSION_SET.has(ext)) {
+        tasks.push(fs.copy(sourcePath, destinationPath))
         continue
       }
 
       const fileBaseName = path.basename(sourcePath, ext)
       const imageOutputPath = path.join(currentOutputDir, `${fileBaseName}${normalizedFormat}`)
-      const convertResult = await convertImageFormat(sourcePath, imageOutputPath, normalizedFormat, {
-        backgroundColor: { r: 255, g: 255, b: 255 },
-        quality,
-      })
-      results.push(convertResult)
+      tasks.push(
+        convertImageFormat(sourcePath, imageOutputPath, normalizedFormat, {
+          backgroundColor: { r: 255, g: 255, b: 255 },
+          quality,
+        }).then((convertResult) => {
+          results.push(convertResult)
+        }),
+      )
     }
+
+    await Promise.all(tasks)
   }
 
   await traverse(sourceDir, outputDir)
@@ -72,7 +81,7 @@ async function handleCoverDirectory(filePaths: string[], type: string, quality: 
   return outputs
 }
 
-export function handleOpenDialog() {
+export function registerIpcHandlers() {
   ipcMain.handle('open:dialog', async (_event, targetType: string, compressQuality: number, type: 'file' | 'directory') => {
     const res = await dialog.showOpenDialog({
       properties: type === 'file' ? ['openFile'] : ['openDirectory'],

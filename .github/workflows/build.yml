@@ -72,5 +72,3 @@ jobs:
             **/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 自动生成的令牌，用于发布
-
-

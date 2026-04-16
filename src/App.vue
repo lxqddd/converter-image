@@ -11,20 +11,46 @@ const transformData = ref({
   type: 'file',
 })
 
-const resultData = ref<any>([])
+interface ConvertResult {
+  success: boolean
+  message?: string[]
+  error?: string
+}
+
+interface DirectoryResult {
+  outputDir: string
+  results: ConvertResult[]
+}
+
+const fileResult = ref<ConvertResult | null>(null)
+const dirResults = ref<DirectoryResult[]>([])
+
 async function handleSelect(type: 'file' | 'directory') {
   transformData.value.type = type
+  fileResult.value = null
+  dirResults.value = []
   const res = await window.ipcRenderer.invoke('open:dialog', transformData.value.targetType, transformData.value.compressQuality, transformData.value.type)
   if (!res) {
     ElMessage.error('取消选择')
     return
   }
-  if (res.success || (res.length && res[0].outputDir)) {
-    ElMessage.success('处理完成')
-    resultData.value = res
+  if (type === 'file') {
+    if (res.success) {
+      ElMessage.success('处理完成')
+      fileResult.value = res
+    }
+    else {
+      ElMessage.error(`处理失败: ${res.error ?? '未知错误'}`)
+    }
   }
   else {
-    ElMessage.error('处理失败')
+    if (Array.isArray(res) && res.length > 0) {
+      ElMessage.success('处理完成')
+      dirResults.value = res
+    }
+    else {
+      ElMessage.error('处理失败')
+    }
   }
 }
 </script>
@@ -54,21 +80,23 @@ async function handleSelect(type: 'file' | 'directory') {
       </div>
     </div>
     <div style="flex: 1; min-height: 0px; overflow-y: auto; font-size: 12px;">
-      <template v-if="resultData.success">
-        <div v-for="item in resultData.message" :key="item">
+      <template v-if="fileResult">
+        <div v-for="item in fileResult.message" :key="item">
           {{ item }}
         </div>
+        <div v-if="fileResult.error" style="color: red;">
+          {{ fileResult.error }}
+        </div>
       </template>
-      <template v-else-if="resultData.length">
-        <div v-for="dir in resultData" :key="dir.outputDir">
+      <template v-else-if="dirResults.length">
+        <div v-for="dir in dirResults" :key="dir.outputDir">
           <div>输出目录：{{ dir.outputDir }}</div>
-          <div v-for="item in dir.results" :key="item.message[0]">
-            {{ item.success ? item.message[0] : item.error }}
+          <div v-for="item in dir.results" :key="item.message?.[0] ?? item.error">
+            {{ item.success ? item.message?.[0] : item.error }}
           </div>
         </div>
       </template>
     </div>
-    <!-- todo 显示结果 -->
   </div>
 </template>
 

@@ -8,36 +8,6 @@ import require$$4 from "util";
 import require$$5 from "assert";
 import require$$1 from "path";
 import sharp from "sharp";
-const PLATFORM_BINARIES = {
-  darwin: [
-    { envVar: "SHARP_DARWIN_X64_PATH", filename: "sharp-darwin-x64.node" },
-    { envVar: "SHARP_DARWIN_ARM64_PATH", filename: "sharp-darwin-arm64.node" }
-  ],
-  win32: [
-    { envVar: "SHARP_WIN32_X64_PATH", filename: "sharp-win32-x64.node" }
-  ],
-  linux: [
-    { envVar: "SHARP_LINUX_X64_PATH", filename: "sharp-linux-x64.node" },
-    { envVar: "SHARP_LINUX_ARM64_PATH", filename: "sharp-linux-arm64.node" }
-  ]
-};
-function createBinaryRoot() {
-  const isDevelopment = process.env.NODE_ENV === "development";
-  if (isDevelopment) {
-    return path$c.join(process.cwd(), "node_modules/sharp/build/Release");
-  }
-  return path$c.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "sharp", "build", "Release");
-}
-function registerSharpBinaries() {
-  const entries = PLATFORM_BINARIES[process.platform];
-  if (!entries) {
-    return;
-  }
-  const binaryRoot = createBinaryRoot();
-  for (const { envVar, filename } of entries) {
-    process.env[envVar] = path$c.join(binaryRoot, filename);
-  }
-}
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 var fs$h = {};
 var universalify$1 = {};
@@ -1956,7 +1926,7 @@ var lib = {
   ...pathExists_1,
   ...remove_1
 };
-const SUPPORTED_FORMATS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"];
+const SUPPORTED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"];
 const ALLOWED_OUTPUT_FORMATS = [".jpg", ".jpeg", ".png", ".webp"];
 async function convertImageFormat(inputPath, outputPath, targetFormat, options = {}) {
   try {
@@ -1965,7 +1935,7 @@ async function convertImageFormat(inputPath, outputPath, targetFormat, options =
     }
     const inputExt = path$c.extname(inputPath).toLowerCase();
     console.log(inputExt);
-    if (!SUPPORTED_FORMATS.includes(inputExt)) {
+    if (!SUPPORTED_IMAGE_EXTENSIONS.includes(inputExt)) {
       throw new Error(`不支持的输入格式: ${inputExt}`);
     }
     const outputExt = path$c.extname(outputPath).toLowerCase();
@@ -1991,24 +1961,25 @@ async function convertImageFormat(inputPath, outputPath, targetFormat, options =
         break;
     }
     await pipeline.toFile(outputPath);
-    const inputSize = lib.statSync(inputPath).size / 1024;
-    const outputSize = lib.statSync(outputPath).size / 1024;
+    const [inputStat, outputStat] = await Promise.all([lib.stat(inputPath), lib.stat(outputPath)]);
+    const inputSize = inputStat.size / 1024;
+    const outputSize = outputStat.size / 1024;
     return { success: true, message: [`转换成功 ${outputPath} 原始大小: ${inputSize.toFixed(2)} KB -> 转换后大小: ${outputSize.toFixed(2)} KB`] };
   } catch (error) {
     console.error(`转换失败 ${path$c.basename(inputPath)}: ${error instanceof Error ? error.message : "未知错误"}`);
     return { success: false, error: error instanceof Error ? error.message : "未知错误" };
   }
 }
-const SUPPORTED_IMAGE_EXTENSIONS = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff"]);
+const SUPPORTED_IMAGE_EXTENSION_SET = new Set(SUPPORTED_IMAGE_EXTENSIONS);
 function normalizeTargetFormat(targetFormat) {
   return targetFormat.startsWith(".") ? targetFormat : `.${targetFormat}`;
 }
 async function handleCoverImage(filePath, type, quality) {
   const targetFormat = normalizeTargetFormat(type);
-  const basename = path$c.dirname(filePath);
-  const name = path$c.extname(filePath);
-  const filenameWithoutExt = path$c.basename(filePath, name);
-  const outputPath = path$c.join(basename, `${filenameWithoutExt}-压缩${targetFormat}`);
+  const dirName = path$c.dirname(filePath);
+  const ext = path$c.extname(filePath);
+  const filenameWithoutExt = path$c.basename(filePath, ext);
+  const outputPath = path$c.join(dirName, `${filenameWithoutExt}-压缩${targetFormat}`);
   return await convertImageFormat(filePath, outputPath, targetFormat, {
     backgroundColor: { r: 255, g: 255, b: 255 },
     quality
@@ -2024,6 +1995,7 @@ async function compressDirectory(sourceDir, targetFormat, quality) {
   const results = [];
   async function traverse(currentSourceDir, currentOutputDir) {
     const entries = await lib.readdir(currentSourceDir);
+    const tasks = [];
     for (const entry of entries) {
       const sourcePath = path$c.join(currentSourceDir, entry);
       const stat2 = await lib.stat(sourcePath);
@@ -2034,18 +2006,22 @@ async function compressDirectory(sourceDir, targetFormat, quality) {
         continue;
       }
       const ext = path$c.extname(sourcePath).toLowerCase();
-      if (!SUPPORTED_IMAGE_EXTENSIONS.has(ext)) {
-        await lib.copy(sourcePath, destinationPath);
+      if (!SUPPORTED_IMAGE_EXTENSION_SET.has(ext)) {
+        tasks.push(lib.copy(sourcePath, destinationPath));
         continue;
       }
       const fileBaseName = path$c.basename(sourcePath, ext);
       const imageOutputPath = path$c.join(currentOutputDir, `${fileBaseName}${normalizedFormat}`);
-      const convertResult = await convertImageFormat(sourcePath, imageOutputPath, normalizedFormat, {
-        backgroundColor: { r: 255, g: 255, b: 255 },
-        quality
-      });
-      results.push(convertResult);
+      tasks.push(
+        convertImageFormat(sourcePath, imageOutputPath, normalizedFormat, {
+          backgroundColor: { r: 255, g: 255, b: 255 },
+          quality
+        }).then((convertResult) => {
+          results.push(convertResult);
+        })
+      );
     }
+    await Promise.all(tasks);
   }
   await traverse(sourceDir, outputDir);
   return { outputDir, results };
@@ -2058,7 +2034,7 @@ async function handleCoverDirectory(filePaths, type, quality) {
   const outputs = await Promise.all(tasks);
   return outputs;
 }
-function handleOpenDialog() {
+function registerIpcHandlers() {
   ipcMain.handle("open:dialog", async (_event, targetType, compressQuality, type) => {
     const res = await dialog.showOpenDialog({
       properties: type === "file" ? ["openFile"] : ["openDirectory"]
@@ -2072,6 +2048,36 @@ function handleOpenDialog() {
     const result = await handleCoverDirectory(res.filePaths, targetType, compressQuality);
     return result;
   });
+}
+const PLATFORM_BINARIES = {
+  darwin: [
+    { envVar: "SHARP_DARWIN_X64_PATH", filename: "sharp-darwin-x64.node" },
+    { envVar: "SHARP_DARWIN_ARM64_PATH", filename: "sharp-darwin-arm64.node" }
+  ],
+  win32: [
+    { envVar: "SHARP_WIN32_X64_PATH", filename: "sharp-win32-x64.node" }
+  ],
+  linux: [
+    { envVar: "SHARP_LINUX_X64_PATH", filename: "sharp-linux-x64.node" },
+    { envVar: "SHARP_LINUX_ARM64_PATH", filename: "sharp-linux-arm64.node" }
+  ]
+};
+function createBinaryRoot() {
+  const isDevelopment = process.env.NODE_ENV === "development";
+  if (isDevelopment) {
+    return path$c.join(process.cwd(), "node_modules/sharp/build/Release");
+  }
+  return path$c.join(process.resourcesPath, "app.asar.unpacked", "node_modules", "sharp", "build", "Release");
+}
+function registerSharpBinaries() {
+  const entries = PLATFORM_BINARIES[process.platform];
+  if (!entries) {
+    return;
+  }
+  const binaryRoot = createBinaryRoot();
+  for (const { envVar, filename } of entries) {
+    process.env[envVar] = path$c.join(binaryRoot, filename);
+  }
 }
 const __dirname = path$c.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path$c.join(__dirname, "..");
@@ -2110,7 +2116,7 @@ app.on("activate", () => {
 app.whenReady().then(() => {
   registerSharpBinaries();
   createWindow();
-  handleOpenDialog();
+  registerIpcHandlers();
 });
 export {
   MAIN_DIST,
