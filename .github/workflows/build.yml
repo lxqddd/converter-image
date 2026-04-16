@@ -37,6 +37,10 @@ jobs:
       - name: 安装依赖
         run: npm install
 
+      - name: 安装 macOS x64 sharp 二进制（交叉编译）
+        if: runner.os == 'macOS'
+        run: npm install @img/sharp-darwin-x64
+
       - name: 构建应用
         run: npm run build # 执行 package.json 中的 dist 命令
         # 可选：如果需要代码签名，添加证书（如 Windows 签名证书）
