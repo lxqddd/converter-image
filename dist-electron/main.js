@@ -8,6 +8,7 @@ import require$$4 from "util";
 import require$$5 from "assert";
 import require$$1 from "path";
 import sharp from "sharp";
+import electronUpdater from "electron-updater";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 var fs$h = {};
 var universalify$1 = {};
@@ -2079,6 +2080,61 @@ function registerSharpBinaries() {
     process.env[envVar] = path$c.join(binaryRoot, filename);
   }
 }
+const { autoUpdater } = electronUpdater;
+let mainWindow = null;
+function initUpdater(win2) {
+  mainWindow = win2;
+  if (!app.isPackaged) {
+    console.log("[Updater] 开发环境，跳过自动更新");
+    return;
+  }
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowDowngrade = false;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.on("checking-for-update", () => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("update:checking");
+  });
+  autoUpdater.on("update-available", (info) => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("update:available", { version: info.version });
+  });
+  autoUpdater.on("update-not-available", () => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("update:not-available");
+  });
+  autoUpdater.on("download-progress", (progress) => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("update:progress", {
+      percent: progress.percent,
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("update:downloaded", { version: info.version });
+  });
+  autoUpdater.on("error", (error) => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("update:error", { message: error.message });
+  });
+  ipcMain.handle("update:install", () => {
+    autoUpdater.quitAndInstall(false, true);
+  });
+  ipcMain.handle("update:check", async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return {
+        available: (result == null ? void 0 : result.updateInfo.version) !== app.getVersion(),
+        version: result == null ? void 0 : result.updateInfo.version
+      };
+    } catch (error) {
+      return { available: false, error: error.message };
+    }
+  });
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error("[Updater] 检查更新失败:", err);
+    });
+  }, 3e3);
+}
 const __dirname = path$c.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path$c.join(__dirname, "..");
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -2117,6 +2173,9 @@ app.whenReady().then(() => {
   registerSharpBinaries();
   createWindow();
   registerIpcHandlers();
+  if (win) {
+    initUpdater(win);
+  }
 });
 export {
   MAIN_DIST,

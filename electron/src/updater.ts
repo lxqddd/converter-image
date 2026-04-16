@@ -1,6 +1,8 @@
 import type { BrowserWindow } from 'electron'
 import { app, ipcMain } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import electronUpdater from 'electron-updater'
+
+const { autoUpdater } = electronUpdater
 
 let mainWindow: BrowserWindow | null = null
 

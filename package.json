@@ -1,7 +1,7 @@
 {
   "name": "dealwith-img",
   "type": "module",
-  "version": "0.0.1",
+  "version": "0.0.8",
   "private": true,
   "description": "图像格式转换工具",
   "author": "向阳",
@@ -37,5 +37,21 @@
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5",
     "vue-tsc": "^2.0.26"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "sharp",
+      "lzma-native",
+      "vue-demi"
+    ],
+    "allowBuild": [
+      "electron",
+      "esbuild",
+      "sharp",
+      "lzma-native",
+      "vue-demi"
+    ]
   }
 }
