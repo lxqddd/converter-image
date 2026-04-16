@@ -16,9 +16,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-13, ubuntu-latest]
+        os: [windows-latest, macos-latest, ubuntu-latest]
         include:
-          - os: macos-13
+          - os: macos-latest
             target: dmg
           - os: windows-latest
             target: nsis
