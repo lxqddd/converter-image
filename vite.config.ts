@@ -18,6 +18,7 @@ export default defineConfig({
           build: {
             rollupOptions: {
               external: [
+                'electron-updater',
                 'sharp',
                 '@img/sharp-darwin-arm64',
                 '@img/sharp-darwin-x64',

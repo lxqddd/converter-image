@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow } from 'electron'
 import { handleOpenDialog } from './src/index'
 import { registerSharpBinaries } from './src/sharpPaths'
+import { setupUpdater } from './src/updater'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -70,4 +71,5 @@ app.whenReady().then(() => {
   registerSharpBinaries()
   createWindow()
   handleOpenDialog()
+  setupUpdater()
 })

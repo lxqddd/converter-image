@@ -13,6 +13,7 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "element-plus": "^2.11.4",
     "fs-extra": "^11.3.2",
     "optional": "^0.1.4",

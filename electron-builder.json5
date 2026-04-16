@@ -8,6 +8,11 @@
     "node_modules/@img/**"
   ],
   "productName": "converter image",
+  "publish": {
+    "provider": "github",
+    "owner": "lxqddd",
+    "repo": "converter-image"
+  },
   "directories": {
     "output": "release/${version}"
   },
