@@ -11,20 +11,16 @@ const SUPPORTED_FORMATS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.t
  * 支持的输出图片格式
  */
 const ALLOWED_OUTPUT_FORMATS = ['.jpg', '.jpeg', '.png', '.webp']
+
 /**
  * 转换单张图片格式
- * @param {string} inputPath - 输入图片路径
- * @param {string} outputPath - 输出图片路径
- * @param {string} targetFormat - 目标格式 (jpg, png, webp)
- * @param {object} options - 转换选项
  */
-export async function convertImageFormat(inputPath: string, outputPath: string, targetFormat: string, options: { backgroundColor?: { r: number, g: number, b: number }, quality?: number, compressionLevel?: number, lossless?: boolean } = {}) {
+export async function convertImageFormat(inputPath: string, outputPath: string, targetFormat: string, options: { backgroundColor?: { r: number, g: number, b: number }, quality?: number } = {}) {
   try {
     if (!fs.existsSync(inputPath)) {
       throw new Error(`文件不存在: ${inputPath}`)
     }
     const inputExt = path.extname(inputPath).toLowerCase()
-    console.log(inputExt)
     if (!SUPPORTED_FORMATS.includes(inputExt)) {
       throw new Error(`不支持的输入格式: ${inputExt}`)
     }
@@ -32,6 +28,11 @@ export async function convertImageFormat(inputPath: string, outputPath: string, 
     if (!ALLOWED_OUTPUT_FORMATS.includes(outputExt)) {
       throw new Error(`不支持的输出格式: ${outputExt}`)
     }
+
+    // 确保输出目录存在
+    const outputDir = path.dirname(outputPath)
+    await fs.ensureDir(outputDir)
+
     let pipeline = sharp(inputPath)
     if (targetFormat === '.jpg' || targetFormat === '.jpeg') {
       pipeline = pipeline.flatten({
@@ -44,7 +45,7 @@ export async function convertImageFormat(inputPath: string, outputPath: string, 
         pipeline = pipeline.jpeg({ quality: options.quality ?? 90, mozjpeg: true })
         break
       case '.png':
-        pipeline = pipeline.png({ quality: options.quality ?? 90 })
+        pipeline = pipeline.png({ compressionLevel: Math.round((100 - (options.quality ?? 90)) / 100 * 9) })
         break
       case '.webp':
         pipeline = pipeline.webp({ quality: options.quality ?? 90 })
@@ -52,9 +53,8 @@ export async function convertImageFormat(inputPath: string, outputPath: string, 
     }
     await pipeline.toFile(outputPath)
 
-    // 输出转换信息
-    const inputSize = fs.statSync(inputPath).size / 1024
-    const outputSize = fs.statSync(outputPath).size / 1024
+    const inputSize = (await fs.stat(inputPath)).size / 1024
+    const outputSize = (await fs.stat(outputPath)).size / 1024
 
     return { success: true, message: [`转换成功 ${outputPath} 原始大小: ${inputSize.toFixed(2)} KB -> 转换后大小: ${outputSize.toFixed(2)} KB`] }
   }
