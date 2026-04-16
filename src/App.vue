@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
-import { ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 const targetTypeArr = ['.jpg', '.jpeg', '.png', '.webp']
 const compressQualityArr = [50, 60, 70, 80, 90]
@@ -53,6 +53,37 @@ async function handleSelect(type: 'file' | 'directory') {
     }
   }
 }
+
+// 自动更新相关
+function handleUpdateDownloaded(_event: Electron.IpcRendererEvent, info: { version: string }) {
+  ElMessageBox.confirm(
+    `新版本 ${info.version} 已下载完成，需要重启应用以完成安装。是否立即重启？`,
+    '发现新版本',
+    {
+      confirmButtonText: '立即重启',
+      cancelButtonText: '稍后重启',
+      type: 'success',
+    },
+  ).then(() => {
+    window.ipcRenderer.invoke('update:install')
+  }).catch(() => {
+    ElMessage.info('将在您退出应用时自动安装更新')
+  })
+}
+
+function handleUpdateError(_event: Electron.IpcRendererEvent, info: { message: string }) {
+  console.error('Update error:', info.message)
+}
+
+onMounted(() => {
+  window.ipcRenderer.on('update:downloaded', handleUpdateDownloaded)
+  window.ipcRenderer.on('update:error', handleUpdateError)
+})
+
+onUnmounted(() => {
+  window.ipcRenderer.off('update:downloaded', handleUpdateDownloaded)
+  window.ipcRenderer.off('update:error', handleUpdateError)
+})
 </script>
 
 <template>

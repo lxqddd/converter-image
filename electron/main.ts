@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow } from 'electron'
 import { registerIpcHandlers } from './src/index'
 import { registerSharpBinaries } from './src/sharpPaths'
+import { initUpdater } from './src/updater'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -70,4 +71,7 @@ app.whenReady().then(() => {
   registerSharpBinaries()
   createWindow()
   registerIpcHandlers()
+  if (win) {
+    initUpdater(win)
+  }
 })

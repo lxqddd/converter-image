@@ -1,11 +1,16 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "com.lxqddd.converter-image",
   "asar": true,
   "productName": "converter image",
   "directories": {
     "output": "release/${version}"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "lxqddd",
+    "repo": "converter-image"
   },
   "files": [
     "dist/**",
@@ -31,9 +36,22 @@
   ],
   "mac": {
     "target": [
-      "dmg"
+      {
+        "target": "zip",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      },
+      {
+        "target": "dmg",
+        "arch": [
+          "x64",
+          "arm64"
+        ]
+      }
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "artifactName": "${productName}-Mac-${version}-${arch}-Installer.${ext}"
   },
   "win": {
     "target": [
